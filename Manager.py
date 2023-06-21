@@ -13,4 +13,6 @@ class Manager:
     def gametitle_select(self, num: int):
         self.game = GameTitle(self.gametitle_list[num])
 
-    def player_init_
+
+if __name__ == "__main__":
+    print(__name__)

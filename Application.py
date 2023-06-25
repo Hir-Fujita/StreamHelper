@@ -27,8 +27,7 @@ class Application(tk.Frame):
         master.config(menu=self.menu_widget)
 
         menu_gametitle = tk.Menu(self.menu_widget, tearoff=0)
-        self.menu_widget.add_cascade(label="GameTitle",
-                                     menu=menu_gametitle)
+        self.menu_widget.add_cascade(label="GameTitle", menu=menu_gametitle)
         radio_variable = tk.IntVar(value=0)
         for num, title in enumerate(self.manager.gametitle_list):
             menu_gametitle.add_radiobutton(
@@ -230,7 +229,8 @@ class TeamRegisterWidget(NewWindow):
         self.object_image = self._create_imageTK(self.object.data.image, (100, 100))
         self.team_image_label = tk.Label(top_frame, image=self.object_image)
         self.team_image_label.grid(row=1, column=0, columnspan=2)
-        team_image_button = tk.Button(top_frame, text="チームアイコン変更",)
+        team_image_button = tk.Button(top_frame, text="チームアイコン変更",
+                                      )
         team_image_button.grid(row=2, column=0, columnspan=2)
 
 

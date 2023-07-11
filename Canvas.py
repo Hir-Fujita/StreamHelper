@@ -62,4 +62,3 @@ class CustomCanvas(tk.Canvas):
         tag = self.find_tag(event)
         print(tag)
 
-

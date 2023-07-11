@@ -36,7 +36,7 @@ class Application(tk.Frame):
                 label=title,
                 value=num,
                 variable=radio_variable,
-                command=self.manager.gametitle_select
+                command=lambda:self.manager.gametitle_select(radio_variable.get())
             )
 
         self.player_reg_window = PlayerRegisterWidget(self.manager)
@@ -146,6 +146,7 @@ class PlayerRegisterWidget(NewWindow):
         ]
         for index, widget in enumerate(left_widget_list):
             self._create_widget_add_label(index, left_frame, widget[0], widget[1], widget[2], True)
+        left_frame.pack(side=tk.LEFT, padx=5)
 
         self.object_image = self._create_imageTK(self.object.data.image, (200, 200))
         right_widget_list = [

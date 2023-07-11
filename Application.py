@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 
 from typing import Tuple, Union
+import os
 import tkinter as tk
 from tkinter import ttk, filedialog
 from PIL import Image, ImageTk
 from Manager import Manager
 from Object import Player, Team
+from Canvas import ScrollFrame, CustomLabelFrame, CustomCanvas
 
 NAME = "FightingGameStreamHelper"
 VERSION = "0.1"
@@ -49,15 +51,9 @@ class Application(tk.Frame):
             command=self.team_reg_window.window_create
         )
 
-        self.layout_object_reg_window = LayoutObjectCreateWidget(self.manager)
-        self.menu_widget.add_command(
-            label="LayoutObject作成",
-            command=self.layout_object_reg_window.window_create
-        )
-
         self.stream_layout_window = StreamLayoutWidget(self.manager)
         self.menu_widget.add_command(
-            label="配信Layout設定",
+            label="レイアウトオブジェクト作成",
             command=self.stream_layout_window.window_create
         )
 
@@ -74,6 +70,8 @@ class NewWindow:
         self.window.focus()
         self.window.title(self.get_window_title())
         self.window.geometry(self.get_window_size())
+        self.menu = tk.Menu(self.window)
+        self.window.config(menu=self.menu)
 
     def get_window_title(self) -> str:
         raise NotImplementedError
@@ -136,10 +134,9 @@ class PlayerRegisterWidget(NewWindow):
 
     def window_create(self):
         super().window_create()
-
-    def window_create(self):
-        super().window_create()
         self.object = Player(self.manager.game.title)
+        self.menu.add_command(label="プレイヤー保存", command=self._save_data)
+        self.menu.add_command(label="プレイヤー読み込み", command=self._load_data)
 
         left_frame = tk.Frame(self.window)
         left_widget_list = [
@@ -149,13 +146,6 @@ class PlayerRegisterWidget(NewWindow):
         ]
         for index, widget in enumerate(left_widget_list):
             self._create_widget_add_label(index, left_frame, widget[0], widget[1], widget[2], True)
-        button_frame = tk.Frame(left_frame)
-        save_button = tk.Button(button_frame, text="save", command=self._save_data)
-        save_button.grid(row=0, column=0, padx=5)
-        load_button = tk.Button(button_frame, text="load", command=self._load_data)
-        load_button.grid(row=0, column=1, padx=5)
-        button_frame.grid(row=len(left_widget_list), column=0, columnspan=2, pady=10)
-        left_frame.pack(side=tk.LEFT)
 
         self.object_image = self._create_imageTK(self.object.data.image, (200, 200))
         right_widget_list = [
@@ -178,9 +168,7 @@ class PlayerRegisterWidget(NewWindow):
         self.widget_list[name].grid(row=index, column=column_index, padx=2)
 
     def _save_data(self):
-        player_name = self.widget_list["名前"].get()
-        character_name = self.widget_list["使用キャラ"].get()
-        filename = f"{player_name}_{character_name}"
+        filename = self.widget_list["名前"].get()
         save_path = super()._save_filedialogwindow(filename, "プレイヤーデータ保存", "Player")
         if save_path:
             self.object.update_player_data(self.widget_list)
@@ -214,38 +202,92 @@ class TeamRegisterWidget(NewWindow):
         return f"チーム登録画面__{self.manager.game.title}"
 
     def get_window_size(self):
-        return "600x400"
+        return "400x800"
 
     def window_create(self):
         super().window_create()
+        self.menu.add_command(label="チーム保存", command=self._save_data)
+        self.menu.add_command(label="チーム読み込み", command=self._load_data)
         self.object = Team(self.manager.game.title)
 
         top_frame = tk.Frame(self.window)
         top_frame.pack()
         team_name_entry_label = tk.Label(top_frame, text="チーム名")
         team_name_entry_label.grid(row=0, column=0, padx=5, pady=2)
-        team_name_entry_box = tk.Entry(top_frame, width=23)
-        team_name_entry_box.grid(row=0, column=1, padx=5, pady=2)
+        self.team_name_entry_box = tk.Entry(top_frame, width=23)
+        self.team_name_entry_box.grid(row=0, column=1, padx=5, pady=2)
         self.object_image = self._create_imageTK(self.object.data.image, (100, 100))
         self.team_image_label = tk.Label(top_frame, image=self.object_image)
         self.team_image_label.grid(row=1, column=0, columnspan=2)
         team_image_button = tk.Button(top_frame, text="チームアイコン変更",
-                                      )
+                                      command=self._change_team_image)
         team_image_button.grid(row=2, column=0, columnspan=2)
 
+        team_length_frame = tk.LabelFrame(self.window, text="チーム人数", labelanchor="n",
+                                          padx=5, pady=5)
+        team_length_frame.pack()
+        minus_button = tk.Button(team_length_frame, text="-", width=2,
+                                 command=lambda:self.team_length_change(False))
+        minus_button.pack(side=tk.LEFT)
+        self.length_label = tk.Label(team_length_frame, text=self.object.data.length)
+        self.length_label.pack(side=tk.LEFT, padx=5)
+        plus_button = tk.Button(team_length_frame, text="+", width=2,
+                                command=lambda:self.team_length_change(True))
+        plus_button.pack(side=tk.LEFT)
+        self.btm_frame = tk.Frame(self.window)
+        self.btm_frame.pack()
+        self.player_entry_box_update()
 
-class LayoutObjectCreateWidget(NewWindow):
-    def __init__(self, manager: Manager):
-        super().__init__(manager)
+    def _change_team_image(self):
+        image_path = super()._open_filedialogwindow("画像データ読み込み")
+        if image_path:
+            self.object.change_team_image(image_path)
+            self.object_image = self._create_imageTK(image_path, (100, 100))
+            self.team_image_label.config(image=self.object_image)
 
-    def get_window_title(self):
-        return "レイアウトオブジェクト登録画面"
+    def team_length_change(self, plus: bool):
+        if plus:
+            self.object.update_team_length(self.object.data.length +1)
+        else:
+            self.object.update_team_length(self.object.data.length -1)
+        self.player_entry_box_update()
 
-    def get_window_size(self):
-        return "600x400"
+    def team_player_update(self, index: int):
+        name = self.widget_list[index].get()
+        self.object.data.player_list[index] = f"{name}.shd"
 
-    def window_create(self):
-        super().window_create()
+    def _save_data(self):
+        filename = self.team_name_entry_box.get()
+        self.object.data.name = filename
+        save_path = super()._save_filedialogwindow(filename, "チームデータ保存", "Team")
+        if save_path:
+            self.object.save(save_path)
+
+    def _load_data(self):
+        open_path = super()._open_filedialogwindow("チームデータ読み込み", "Team")
+        if open_path:
+            self.object.load_team_data(open_path)
+            self.team_name_entry_box.delete(0, tk.END)
+        self.team_name_entry_box.insert(0, self.object.data.name)
+        self.object_image = self._create_imageTK(self.object.data.image, (100, 100))
+        self.team_image_label.config(image=self.object_image)
+        self.player_entry_box_update()
+
+    def player_entry_box_update(self):
+        self.length_label.config(text=self.object.data.length)
+        self.widget_list = []
+        self.btm_frame.destroy()
+        self.btm_frame = tk.Frame(self.window)
+        self.btm_frame.pack()
+        player_list = [name.replace(".shd", "") for name in self.manager.game.player_list]
+        for num, player in enumerate(self.object.data.player_list):
+            label = tk.Label(self.btm_frame, text=f"{num+1}人目")
+            label.grid(row=num, column=0, padx=2, pady=2)
+            entry_box = ttk.Combobox(self.btm_frame, values=player_list, width=40, state="readonly")
+            entry_box.bind("<<ComboboxSelected>>", lambda e, num=num:self.team_player_update(num))
+            entry_box.set(player.replace(".shd", ""))
+            self.widget_list.append(entry_box)
+            entry_box.grid(row=num, column=1)
 
 
 class StreamLayoutWidget(NewWindow):
@@ -253,13 +295,63 @@ class StreamLayoutWidget(NewWindow):
         super().__init__(manager)
 
     def get_window_title(self):
-        return f"配信レイアウト設定画面__{self.manager.game.title}"
+        return f"レイアウトオブジェクト作成画面__{self.manager.game.title}"
 
     def get_window_size(self):
-        return "600x400"
+        return "1200x600"
 
     def window_create(self):
         super().window_create()
+        self.left_frame = ScrollFrame(self.window)
+        self.left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
+
+        image_label_frame = CustomLabelFrame(self.left_frame.frame, text="画像を追加")
+        image_label_frame.pack(fill=tk.X, pady=5)
+        image_label_frame.create_button("画像読み込み")
+
+        text_label_frame = CustomLabelFrame(self.left_frame.frame, text="テキストを追加")
+        text_label_frame.pack(fill=tk.X, pady=5)
+        text_label_frame.create_button("テキスト追加")
+
+        player_label_frame = CustomLabelFrame(self.left_frame.frame, text="プレイヤー")
+        player_label_frame.pack(fill=tk.X, pady=5)
+        player_image_frame = CustomLabelFrame(player_label_frame, text="画像")
+        player_image_frame.pack(padx=5, pady=5)
+        player_image_frame.create_commbo_box(["プレイヤー", "キャラクター", "所属チーム"])
+        player_image_frame.create_button("生成")
+        player_text_frame = CustomLabelFrame(player_label_frame, text="テキスト")
+        player_text_frame.pack(padx=5, pady=5)
+        player_text_frame.create_commbo_box(["プレイヤー", "キャラクター", "所属チーム"])
+        player_text_frame.create_button("生成")
+
+        team_label_frame = CustomLabelFrame(self.left_frame.frame, text="チーム")
+        team_label_frame.pack(fill=tk.X, pady=5)
+        team_label_frame.create_button("チーム名生成")
+        team_label_frame.create_button("チーム画像生成")
+        team_image_frame = CustomLabelFrame(team_label_frame, text="画像")
+        team_image_frame.pack(padx=5, pady=5)
+        team_image_frame.create_commbo_box(["プレイヤー", "キャラクター"])
+        team_image_frame.create_button("生成")
+        team_text_frame = CustomLabelFrame(team_label_frame, text="テキスト")
+        team_text_frame.pack(padx=5, pady=5)
+        team_text_frame.create_commbo_box(["プレイヤー", "キャラクター"])
+        team_text_frame.create_button("生成")
+
+        counter_label_frame = CustomLabelFrame(self.left_frame.frame, text="カウンター")
+        counter_label_frame.pack(fill=tk.X, pady=5)
+        counter_label_frame.create_button("数字を追加")
+
+        canvas_frame = tk.Frame(self.window)
+        canvas_frame.pack(side=tk.LEFT)
+        canvas_size_frame = tk.Frame(canvas_frame)
+        canvas_size_frame.pack()
+        canvas_size_label = tk.Label(canvas_size_frame, text="キャンバスサイズ")
+        canvas_size_label.pack(side=tk.LEFT, padx=5)
+        canvas_size_box = ttk.Combobox(canvas_size_frame, values=["960x540", "1920x1080"])
+        canvas_size_box.current(0)
+        canvas_size_box.pack(side=tk.LEFT)
+        self.canvas = CustomCanvas(canvas_frame, width=960, height=540, bg="green")
+        self.canvas.pack()
 
 
 

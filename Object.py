@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from typing import Tuple, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 import pickle
 from PIL import Image
@@ -13,6 +13,7 @@ class GameTitle:
 
     def __post_init__(self):
         self._create_character_list(self.title)
+        self.player_list = os.listdir(f"StreamHelper/Gametitle/{self.title}/Player")
 
     def _create_character_list(self, title: str):
         character_list = os.listdir(f"StreamHelper/Gametitle/{title}/character/")
@@ -87,15 +88,27 @@ class Player(Object):
 class TeamData:
     name: str = ""
     length: int = 1
+    player_list: list = field(default_factory=list)
     image: Image = None
 
 class Team(Object):
     def __init__(self, title: str):
         self.title = title
         self.data = TeamData()
-        self.list = []
+        self.data.player_list.append("")
         self.change_team_image("StreamHelper/image/team.png")
 
     def change_team_image(self, image_path: str):
         self.data.image = Image.open(image_path)
 
+    def load_team_data(self, filepath: str):
+        self.data = super().load(filepath)
+
+    def update_team_length(self, new_length: int):
+        self.data.length = new_length
+        if self.data.length < 1:
+            self.data.length = 1
+        if self.data.length > len(self.data.player_list):
+            self.data.player_list.append("")
+        elif self.data.length < len(self.data.player_list):
+            self.data.player_list.pop(-1)

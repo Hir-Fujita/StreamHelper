@@ -5,7 +5,7 @@ from typing import Tuple, Union
 from dataclasses import dataclass, field
 import os
 import pickle
-from PIL import Image
+from PIL import Image, ImageTk
 
 @dataclass
 class GameTitle:
@@ -112,3 +112,71 @@ class Team(Object):
             self.data.player_list.append("")
         elif self.data.length < len(self.data.player_list):
             self.data.player_list.pop(-1)
+
+
+
+class LayoutObject:
+    def update_size(self, width: int, height: int):
+        self.width = width
+        self.height = height
+
+    def update_position(self, position: tuple):
+        self.position = position
+
+    def update_image(self):
+        self.image = self.data.image.copy()
+        # 画像処理
+        self.data.width, self.data.height = self.image.size
+        self.image_tk = ImageTk.PhotoImage(self.image)
+
+    def resize(self, size: Tuple[int, int]):
+        self.image = self.data.image.copy().resize(size)
+        self.data.width, self.data.height = self.image.size
+        self.image_tk = ImageTk.PhotoImage(self.image)
+
+
+
+
+
+@dataclass
+class ImageLayoutData:
+    image: Image = None
+    width: int = 0
+    height: int = 0
+    position: list = field(default_factory=list)
+
+
+class ConstImageLayoutObject(LayoutObject):
+    def __init__(self, image_path, id):
+        self.data = ImageLayoutData()
+        self.data.image = Image.open(image_path)
+        self.name = os.path.basename(image_path)
+        self.id = id
+
+
+
+class ImageLayoutObject(LayoutObject):
+    def __init__(self, name):
+        self.data = ImageLayoutData()
+        self.name = name
+
+
+
+
+@dataclass
+class TextLayoutData:
+    text: str = ""
+    font: str = ""
+    width: int = 0
+    height: int = 0
+    position: list = field(default_factory=list)
+
+class ConstTextLayoutObject(LayoutObject):
+    def __init__(self, name):
+        self.data = TextLayoutData()
+        self.name = name
+
+class TextLayoutObject(LayoutObject):
+    def __init__(self, name):
+        self.data = TextLayoutData()
+        self.name = name

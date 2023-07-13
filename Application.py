@@ -4,7 +4,7 @@
 from typing import Tuple, Union
 import os
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, colorchooser
 from PIL import Image, ImageTk
 from Manager import Manager
 from Object import Player, Team
@@ -12,6 +12,8 @@ from Canvas import ScrollFrame, CustomLabelFrame, CustomCanvas
 
 NAME = "FightingGameStreamHelper"
 VERSION = "0.1"
+
+# tkinterのCanvasは配置時のサイズと実際のクリックイベントで取得できる座標にズレが有る
 
 class Application(tk.Frame):
     def __init__(self, master: tk.Tk):
@@ -299,22 +301,33 @@ class StreamLayoutWidget(NewWindow):
         return f"レイアウトオブジェクト作成画面__{self.manager.game.title}"
 
     def get_window_size(self):
-        return "1200x600"
+        return "1500x600"
+
+    def _canvas_create_imagefile(self):
+        filepath = self._open_filedialogwindow("画像読み込み")
+        if filepath:
+            self.canvas.add_const_image_object(filepath)
 
     def window_create(self):
         super().window_create()
-        self.left_frame = ScrollFrame(self.window)
-        self.left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
+        self.menu.add_command(label="レイアウトオブジェクト保存")
+        self.menu.add_command(label="レイアウトオブジェクト読み込み")
 
-        image_label_frame = CustomLabelFrame(self.left_frame.frame, text="画像を追加")
+        left_frame = ScrollFrame(self.window)
+        left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
+        font_list = os.listdir("StreamHelper/Font")
+
+        image_label_frame = CustomLabelFrame(left_frame.frame, text="画像を追加")
         image_label_frame.pack(fill=tk.X, pady=5)
         image_label_frame.create_button("画像読み込み")
+        image_label_frame.widgets["画像読み込み"].config(command=self._canvas_create_imagefile)
 
-        text_label_frame = CustomLabelFrame(self.left_frame.frame, text="テキストを追加")
+        text_label_frame = CustomLabelFrame(left_frame.frame, text="テキストを追加")
         text_label_frame.pack(fill=tk.X, pady=5)
+        text_label_frame.create_font_box(font_list)
         text_label_frame.create_button("テキスト追加")
 
-        player_label_frame = CustomLabelFrame(self.left_frame.frame, text="プレイヤー")
+        player_label_frame = CustomLabelFrame(left_frame.frame, text="プレイヤー")
         player_label_frame.pack(fill=tk.X, pady=5)
         player_image_frame = CustomLabelFrame(player_label_frame, text="画像")
         player_image_frame.pack(padx=5, pady=5)
@@ -323,9 +336,10 @@ class StreamLayoutWidget(NewWindow):
         player_text_frame = CustomLabelFrame(player_label_frame, text="テキスト")
         player_text_frame.pack(padx=5, pady=5)
         player_text_frame.create_commbo_box(["プレイヤー", "キャラクター", "所属チーム"])
+        player_text_frame.create_font_box(font_list)
         player_text_frame.create_button("生成")
 
-        team_label_frame = CustomLabelFrame(self.left_frame.frame, text="チーム")
+        team_label_frame = CustomLabelFrame(left_frame.frame, text="チーム")
         team_label_frame.pack(fill=tk.X, pady=5)
         team_label_frame.create_button("チーム名生成")
         team_label_frame.create_button("チーム画像生成")
@@ -336,23 +350,41 @@ class StreamLayoutWidget(NewWindow):
         team_text_frame = CustomLabelFrame(team_label_frame, text="テキスト")
         team_text_frame.pack(padx=5, pady=5)
         team_text_frame.create_commbo_box(["プレイヤー", "キャラクター"])
+        team_text_frame.create_font_box(font_list)
         team_text_frame.create_button("生成")
 
-        counter_label_frame = CustomLabelFrame(self.left_frame.frame, text="カウンター")
+        counter_label_frame = CustomLabelFrame(left_frame.frame, text="カウンター")
         counter_label_frame.pack(fill=tk.X, pady=5)
+        counter_label_frame.create_font_box(font_list)
         counter_label_frame.create_button("数字を追加")
+
+        right_frame = ScrollFrame(self.window)
+        right_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=True)
+        frame_rock_label = tk.Label(right_frame.frame, width=40)
+        frame_rock_label.pack(side=tk.BOTTOM)
 
         canvas_frame = tk.Frame(self.window)
         canvas_frame.pack(side=tk.LEFT)
-        canvas_size_frame = tk.Frame(canvas_frame)
-        canvas_size_frame.pack()
-        canvas_size_label = tk.Label(canvas_size_frame, text="キャンバスサイズ")
+        canvas_top_frame = tk.Frame(canvas_frame)
+        canvas_top_frame.pack()
+        canvas_color_box = tk.Button(canvas_top_frame, text="キャンバスの色変更",
+                                     command=self.canvas_color_change)
+        canvas_color_box.pack(side=tk.LEFT, padx=10)
+        canvas_size_label = tk.Label(canvas_top_frame, text="キャンバスサイズ")
         canvas_size_label.pack(side=tk.LEFT, padx=5)
-        canvas_size_box = ttk.Combobox(canvas_size_frame, values=["960x540", "1920x1080"])
+        canvas_size_box = ttk.Combobox(canvas_top_frame, values=["キャンパスサイズ変更（未実装）","960x540", "1920x1080"])
         canvas_size_box.current(0)
         canvas_size_box.pack(side=tk.LEFT)
-        self.canvas = CustomCanvas(canvas_frame, width=960, height=540, bg="green")
-        self.canvas.pack()
+
+        self.canvas = CustomCanvas(canvas_frame, right_frame.frame, width=960, height=540, bg="green", highlightthickness=0)
+        self.canvas.pack(padx=5, pady=5)
+
+    def canvas_color_change(self):
+        color = colorchooser.askcolor(parent=self.window)
+        if color[0] != None:
+            self.canvas.config(bg=color[1])
+
+
 
 
 

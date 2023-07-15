@@ -12,3 +12,7 @@ class Manager:
 
     def gametitle_select(self, num: int):
         self.game = GameTitle(self.gametitle_list[num])
+
+
+if __name__ == "__main__":
+    print(__name__)

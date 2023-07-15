@@ -4,7 +4,7 @@
 from typing import Tuple, Union
 import os
 import tkinter as tk
-from tkinter import ttk, filedialog, colorchooser
+from tkinter import ttk, filedialog, colorchooser, messagebox
 from PIL import Image, ImageTk
 from Manager import Manager
 from Object import Player, Team
@@ -303,10 +303,30 @@ class StreamLayoutWidget(NewWindow):
     def get_window_size(self):
         return "1500x600"
 
-    def _canvas_create_imagefile(self):
+    def _canvas_create_const_image_object(self):
         filepath = self._open_filedialogwindow("画像読み込み")
         if filepath:
             self.canvas.add_const_image_object(filepath)
+
+    def _canvas_create_variable_image_object(self, frame: CustomLabelFrame, text=False):
+        if not text:
+            if frame.box.get() == "":
+                messagebox.showerror("Error", "Comboboxが選択されていません", parent=self.window)
+            else:
+                self.canvas.add_image_object(frame.box.get(), frame.parent_label)
+        else:
+            self.canvas.add_image_object(text, frame.parent_label)
+
+    def _canvas_create_variable_text_object(self, frame: CustomLabelFrame, text=False):
+        print(text)
+        if not text:
+            if frame.box.get() == "":
+                messagebox.showerror("Error", "Comboboxが選択されていません", parent=self.window)
+            else:
+                self.canvas.add_text_object(frame.box.get(), frame.parent_label)
+        else:
+            self.canvas.add_text_object(text, frame.parent_label)
+
 
     def window_create(self):
         super().window_create()
@@ -320,7 +340,7 @@ class StreamLayoutWidget(NewWindow):
         image_label_frame = CustomLabelFrame(left_frame.frame, text="画像を追加")
         image_label_frame.pack(fill=tk.X, pady=5)
         image_label_frame.create_button("画像読み込み")
-        image_label_frame.widgets["画像読み込み"].config(command=self._canvas_create_imagefile)
+        image_label_frame.widgets["画像読み込み"].config(command=self._canvas_create_const_image_object)
 
         text_label_frame = CustomLabelFrame(left_frame.frame, text="テキストを追加")
         text_label_frame.pack(fill=tk.X, pady=5)
@@ -331,32 +351,36 @@ class StreamLayoutWidget(NewWindow):
         player_label_frame.pack(fill=tk.X, pady=5)
         player_image_frame = CustomLabelFrame(player_label_frame, text="画像")
         player_image_frame.pack(padx=5, pady=5)
-        player_image_frame.create_commbo_box(["プレイヤー", "キャラクター", "所属チーム"])
+        player_image_frame.create_commbo_box(["プレイヤー画像", "キャラクター画像", "所属チームアイコン"])
         player_image_frame.create_button("生成")
+        player_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_image_object(player_image_frame))
         player_text_frame = CustomLabelFrame(player_label_frame, text="テキスト")
         player_text_frame.pack(padx=5, pady=5)
-        player_text_frame.create_commbo_box(["プレイヤー", "キャラクター", "所属チーム"])
-        player_text_frame.create_font_box(font_list)
+        player_text_frame.create_commbo_box(["プレイヤー名", "キャラクター名", "所属チーム名"])
         player_text_frame.create_button("生成")
+        player_text_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_text_object(player_text_frame))
 
         team_label_frame = CustomLabelFrame(left_frame.frame, text="チーム")
         team_label_frame.pack(fill=tk.X, pady=5)
         team_label_frame.create_button("チーム名生成")
+        team_label_frame.widgets["チーム名生成"].config(command=lambda: self._canvas_create_variable_text_object(team_label_frame, "チーム名"))
         team_label_frame.create_button("チーム画像生成")
+        team_label_frame.widgets["チーム画像生成"].config(command=lambda: self._canvas_create_variable_image_object(team_label_frame, "チーム画像"))
         team_image_frame = CustomLabelFrame(team_label_frame, text="画像")
         team_image_frame.pack(padx=5, pady=5)
-        team_image_frame.create_commbo_box(["プレイヤー", "キャラクター"])
+        team_image_frame.create_commbo_box(["プレイヤー画像", "キャラクター画像"])
         team_image_frame.create_button("生成")
+        team_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_image_object(team_image_frame))
         team_text_frame = CustomLabelFrame(team_label_frame, text="テキスト")
         team_text_frame.pack(padx=5, pady=5)
-        team_text_frame.create_commbo_box(["プレイヤー", "キャラクター"])
-        team_text_frame.create_font_box(font_list)
+        team_text_frame.create_commbo_box(["プレイヤー名", "キャラクター名"])
         team_text_frame.create_button("生成")
+        team_text_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_text_object(team_text_frame))
 
         counter_label_frame = CustomLabelFrame(left_frame.frame, text="カウンター")
         counter_label_frame.pack(fill=tk.X, pady=5)
-        counter_label_frame.create_font_box(font_list)
         counter_label_frame.create_button("数字を追加")
+        counter_label_frame.create_button("カウンター用画像を追加")
 
         right_frame = ScrollFrame(self.window)
         right_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=True)

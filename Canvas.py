@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image
-from typing import Union
-from Object import ConstImageLayoutObject, ConstTextLayoutObject
-UNION_OBJECT = Union[ConstTextLayoutObject, ConstImageLayoutObject]
+from typing import Union, Callable
+from Object import ConstImageLayoutObject, ConstTextLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject
 import random, string
 
+UNION_OBJECT = Union[ConstTextLayoutObject, ConstImageLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject]
 def random_id(n):
     return str(random.randrange(10**(n-1),10**n))
 
@@ -40,8 +41,13 @@ class ScrollFrame(tk.Frame):
 
 
 class CustomLabelFrame(tk.LabelFrame):
-    def __init__(self, parent, *args, **kwargs):
-        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+    def __init__(self, parent, text="", *args, **kwargs):
+        tk.LabelFrame.__init__(self, parent, text=text, *args, **kwargs)
+        if isinstance(parent, CustomLabelFrame):
+            self.parent_label = parent.label
+        else:
+            self.parent_label = ""
+        self.label = text
         self.widgets = {}
 
     def create_button(self, text: str, width=20, padx=5, pady=5):
@@ -66,10 +72,22 @@ class CustomCanvas(tk.Canvas):
         self.bind("<Button-1>", lambda event:self.left_click(event))
         self.bind("<Button1-Motion>", lambda event:self.mouse_drag(event))
         self.bind("<ButtonRelease>", lambda event:self.mouse_release())
+        self.bind("<Button-3>", lambda event:self.right_click(event))
         self.resize_direction = False
+        self.menu = tk.Menu(self, tearoff=0)
+        self.menu.add_command(label="Delete", command=self.delete_object)
 
     def add_const_image_object(self, path: str):
-        self.dict.add_object(ConstImageLayoutObject(path, f"id_{random_id(10)}"))
+        object = ConstImageLayoutObject(path, f"id_{random_id(10)}")
+        self.dict.add_object(object)
+
+    def add_image_object(self, name: str, category: str):
+        object = VariableImageLayoutObject(name, category, f"id_{random_id(10)}")
+        self.dict.add_object(object)
+
+    def add_text_object(self, name: str, category: str):
+        object = VariableTextLayoutObject(name, category, f"id_{random_id(10)}")
+        self.dict.add_object(object)
 
     def _create_canvas_object(self, obj: UNION_OBJECT):
         self.create_image(
@@ -79,7 +97,14 @@ class CustomCanvas(tk.Canvas):
             image=obj.image_tk,
             tag=obj.id
             )
+        self.lower(obj.id)
         self.object_position_update(obj.id)
+
+    def delete_object(self):
+        self.rect_delete()
+        self.delete(self.tag[0])
+        self.dict.delete_object(self.tag[0])
+        self.tag = False
 
     def find_tag(self, event):
         closest_ids = self.find_closest(event.x, event.y)
@@ -126,7 +151,7 @@ class CustomCanvas(tk.Canvas):
         tag = self.find_tag(event)
         if tag:
             if tag[-1] == "current":
-                if not self.resize_check(tag):
+                if not self.resize_check(tag) and tag[0] != "rect":
                     self.image_select(tag[0])
                     self.tag = tag
                     self.x = event.x
@@ -135,10 +160,18 @@ class CustomCanvas(tk.Canvas):
                 self.rect_delete()
                 self.tag = False
 
+    def right_click(self, event):
+        tag = self.find_tag(event)
+        if tag:
+            if tag[-1] == "current":
+                self.tag = tag
+                self.menu.post(event.x_root, event.y_root)
+
     def image_select(self, image_id):
         self.rect_delete()
         self.move_tag_delete()
         self.tag = (image_id, "current")
+        self.dict.label_frame_select(image_id)
         self.addtag_withtag("move", image_id)
         self._create_rect(self.find_bbox(image_id))
 
@@ -302,37 +335,52 @@ class CustomCanvas(tk.Canvas):
 
 
 
+
 class CustomEntry(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
         tk.LabelFrame.__init__(self, parent, *args, **kwargs)
-        self.box = tk.Entry(self, width=18)
+        self.value = tk.StringVar()
+        self.box = tk.Entry(self, width=18, textvariable=self.value)
         self.box.pack(padx=2, pady=2)
 
     def set(self, text: str):
-        self.box.delete(0, tk.END)
-        self.box.insert(0, text)
+        self.value.set(text)
 
     def get(self) -> str:
-        return self.box.get()
+        return self.value.get()
 
 class CustomSpinbox(tk.LabelFrame):
     def __init__(self, parent, width: int, *args, **kwargs):
         tk.LabelFrame.__init__(self, parent, *args, **kwargs)
-        self.variable = tk.IntVar()
-        self.box = tk.Spinbox(self, width=width, increment=1, from_=1, to=9999, textvariable=self.variable)
+        self.value = tk.IntVar()
+        self.box = tk.Spinbox(self, width=width, increment=1, from_=1, to=9999, textvariable=self.value)
         self.box.pack(padx=2, pady=2)
 
     def set(self, value: int):
-        self.variable.set(value)
+        self.value.set(value)
 
     def get(self) -> int:
-        return self.variable.get()
+        return self.value.get()
+
+class CustomFontCombobox(tk.LabelFrame):
+    def __init__(self, parent, *args, **kwargs):
+        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+        self.box = ttk.Combobox(self, width=18, values=os.listdir("StreamHelper/Font"))
+        self.box.pack(padx=2, pady=2)
+        self.box.current(0)
+
+    def set(self, value: str):
+        self.box.set(value)
+
+    def get(self) -> str:
+        return self.box.get()
 
 
 class LayoutObjectViewer:
-    def __init__(self, object: UNION_OBJECT, frame):
+    def __init__(self, object: UNION_OBJECT, frame: tk.Tk, method: Callable):
         self.object = object
-        self.frame = tk.Frame(frame, relief=tk.SOLID, bd=2)
+        self.method = method
+        self.frame = tk.LabelFrame(frame, text=object.cls, relief=tk.SOLID, bd=2)
         self.frame.pack(pady=2)
         box_frame = tk.Frame(self.frame)
         box_frame.pack(side=tk.RIGHT)
@@ -357,12 +405,17 @@ class LayoutObjectViewer:
         self.pos_right_box.pack(side=tk.LEFT, padx=3, pady=2)
         self.pos_bottom_box = CustomSpinbox(pos_frame, 5, text="BOTTOM")
         self.pos_bottom_box.pack(side=tk.LEFT, padx=3, pady=2)
+        if "Text" in object.cls:
+            font_frame = tk.Frame(box_frame)
+            font_frame.grid(row=3, column=0, columnspan=2, padx=2, pady=2)
+            self.font_box = CustomFontCombobox(font_frame, text="Font")
+            self.font_box.pack(padx=2, pady=2)
 
         button_frame = tk.Frame(self.frame)
         button_frame.pack(side=tk.RIGHT)
-        up_button = tk.Button(button_frame, text="▲")
+        up_button = tk.Button(button_frame, text="▲", command=self.up_button_click)
         up_button.pack(side=tk.TOP, padx=2, pady=5)
-        down_button = tk.Button(button_frame, text="▼")
+        down_button = tk.Button(button_frame, text="▼", command=self.down_button_click)
         down_button.pack(side=tk.BOTTOM, padx=2, pady=5)
 
     def size_update(self):
@@ -376,6 +429,21 @@ class LayoutObjectViewer:
         self.pos_right_box.set(position[2])
         self.pos_bottom_box.set(position[3])
 
+    def re_pack(self):
+        self.frame.pack()
+
+    def frame_pack_forget(self):
+        self.frame.pack_forget()
+
+    def up_button_click(self):
+        self.method(self.object.id, True)
+
+    def down_button_click(self):
+        self.method(self.object.id, False)
+
+
+
+
 
 class LayoutObjectCustomList:
     def __init__(self, canvas: CustomCanvas, dataframe):
@@ -385,11 +453,48 @@ class LayoutObjectCustomList:
 
     def add_object(self, obj: UNION_OBJECT):
         obj.update_image()
-        self.dict[obj.id] = LayoutObjectViewer(obj, self.frame)
+        self.dict[obj.id] = LayoutObjectViewer(obj, self.frame, self.layer_update)
+        self.dict[obj.id].frame.bind("<Button-1>", lambda event:self.canvas.image_select(obj.id))
         self.canvas._create_canvas_object(obj)
 
-    def object_position_update(self, id, position):
+    def delete_object(self, id: str):
+        self.dict[id].frame.destroy()
+        del self.dict[id]
+
+    def object_position_update(self, id: str, position: "list[int]"):
         self.dict[id].position_update(position)
 
-    def object_size_update(self, id):
+    def object_size_update(self, id: str):
         self.dict[id].size_update()
+
+    def label_frame_select(self, id: str):
+        if len(self.dict) > 0:
+            [obj.frame.config(bg="SystemButtonFace") for obj in self.dict.values()]
+        self.dict[id].frame.config(bg="red")
+
+    def layer_update(self, id: str, upper: bool):
+        new_dict = {index: obj for (index, obj) in enumerate(self.dict.values())}
+        target = [obj for obj in self.dict.values() if obj.object.id == id][0]
+        index = [key for key, value in new_dict.items() if value == target][0]
+        if len(self.dict) != 0 and len(self.dict) != 1:
+            if upper:
+                if index != 0:
+                    new_dict[index-1], new_dict[index] = new_dict[index], new_dict[index-1]
+            else:
+                if index != len(self.dict)-1:
+                    new_dict[index+1], new_dict[index] = new_dict[index], new_dict[index+1]
+            self.dict = {obj.object.id: obj for obj in new_dict.values()}
+            self.re_pack()
+            self.canvas_layer_update()
+
+    def re_pack(self):
+        [obj.frame_pack_forget() for obj in self.dict.values()]
+        [obj.re_pack() for obj in self.dict.values()]
+
+    def canvas_layer_update(self):
+        [self.canvas.lower(key) for key in self.dict]
+
+
+
+if __name__ == "__main__":
+    print(__name__)

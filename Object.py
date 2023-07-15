@@ -5,7 +5,7 @@ from typing import Tuple, Union
 from dataclasses import dataclass, field
 import os
 import pickle
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw, ImageFont
 
 @dataclass
 class GameTitle:
@@ -114,6 +114,50 @@ class Team(Object):
             self.data.player_list.pop(-1)
 
 
+def return_class_name(object):
+    if isinstance(object, ConstImageLayoutObject):
+        return "ConstImageLayoutObject"
+    if isinstance(object, ConstTextLayoutObject):
+        return "ConstTextLayoutObject"
+    if isinstance(object, VariableImageLayoutObject):
+        return "VariableImageLayoutObject"
+    if isinstance(object, VariableTextLayoutObject):
+        return "VariableTextLayoutObject"
+
+
+def layout_image_create(object):
+    _class = return_class_name(object)
+    print(_class)
+    if "Image" in _class:
+        size = (200, 200)
+        color = "blue"
+    elif "Text" in _class:
+        size = (300, 60)
+        color = "red"
+    image = Image.new("RGBA", size, (255, 255, 255, 100))
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype("StreamHelper\Font\meiryo.ttc", 20)
+    draw.rectangle((0, 0, size[0]-1, size[1]-1),
+                   width=5,
+                   outline=color
+                   )
+    draw.text((0, 0),
+              object.category,
+              fill="white",
+              stroke_width=2,
+              stroke_fill='black',
+              font=font)
+    fontsize = draw.textsize(object.name, font)
+    draw.text((size[0]/2 -fontsize[0]/2, size[1]/2 -fontsize[1]/2),
+              object.name,
+              fill="white",
+              stroke_width=2,
+              stroke_fill='black',
+              font=font)
+    return image
+
+
+
 
 class LayoutObject:
     def update_size(self, width: int, height: int):
@@ -124,15 +168,15 @@ class LayoutObject:
         self.position = position
 
     def update_image(self):
-        self.image = self.data.image.copy()
+        image = self.image.copy()
         # 画像処理
-        self.data.width, self.data.height = self.image.size
-        self.image_tk = ImageTk.PhotoImage(self.image)
+        self.data.width, self.data.height = image.size
+        self.image_tk = ImageTk.PhotoImage(image)
 
     def resize(self, size: Tuple[int, int]):
-        self.image = self.data.image.copy().resize(size)
-        self.data.width, self.data.height = self.image.size
-        self.image_tk = ImageTk.PhotoImage(self.image)
+        image = self.image.copy().resize(size)
+        self.data.width, self.data.height = image.size
+        self.image_tk = ImageTk.PhotoImage(image)
 
 
 
@@ -140,31 +184,45 @@ class LayoutObject:
 
 @dataclass
 class ImageLayoutData:
+    width: int = 0
+    height: int = 0
+    position: list = field(default_factory=list)
+
+@dataclass
+class ConstImageLayoutData:
     image: Image = None
     width: int = 0
     height: int = 0
     position: list = field(default_factory=list)
 
-
 class ConstImageLayoutObject(LayoutObject):
-    def __init__(self, image_path, id):
-        self.data = ImageLayoutData()
-        self.data.image = Image.open(image_path)
+    def __init__(self, image_path: str, id: str):
+        self.cls = "ConstImageLayoutObject"
+        self.data = ConstImageLayoutData()
+        self.image = Image.open(image_path)
         self.name = os.path.basename(image_path)
         self.id = id
 
-
-
-class ImageLayoutObject(LayoutObject):
-    def __init__(self, name):
+class VariableImageLayoutObject(LayoutObject):
+    def __init__(self, name: str, category: str, id: str):
+        self.cls = "VariableImageLayoutObject"
         self.data = ImageLayoutData()
         self.name = name
-
+        self.category = category
+        self.id = id
+        self.image = layout_image_create(self)
 
 
 
 @dataclass
 class TextLayoutData:
+    font: str = ""
+    width: int = 0
+    height: int = 0
+    position: list = field(default_factory=list)
+
+@dataclass
+class ConstTextLayoutData:
     text: str = ""
     font: str = ""
     width: int = 0
@@ -173,10 +231,20 @@ class TextLayoutData:
 
 class ConstTextLayoutObject(LayoutObject):
     def __init__(self, name):
+        self.cls = "ConstTextLayoutObject"
         self.data = TextLayoutData()
         self.name = name
 
-class TextLayoutObject(LayoutObject):
-    def __init__(self, name):
+class VariableTextLayoutObject(LayoutObject):
+    def __init__(self, name: str, category: str, id: str):
+        self.cls = "VariableTextLayoutObject"
         self.data = TextLayoutData()
         self.name = name
+        self.category = category
+        self.id = id
+        self.image = layout_image_create(self)
+
+
+
+if __name__ == "__main__":
+    print(__name__)

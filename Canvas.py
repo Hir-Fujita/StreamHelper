@@ -6,10 +6,10 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image
 from typing import Union, Callable
-from Object import ConstImageLayoutObject, ConstTextLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject
+from Object import ConstImageLayoutObject, ConstTextLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject
 import random, string
 
-UNION_OBJECT = Union[ConstTextLayoutObject, ConstImageLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject]
+UNION_OBJECT = Union[ConstTextLayoutObject, ConstImageLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject]
 def random_id(n):
     return str(random.randrange(10**(n-1),10**n))
 
@@ -82,11 +82,15 @@ class CustomCanvas(tk.Canvas):
         self.dict.add_object(object)
 
     def add_image_object(self, name: str, category: str):
-        object = VariableImageLayoutObject(name, category, f"id_{random_id(10)}")
+        object = VariableImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}")
         self.dict.add_object(object)
 
     def add_text_object(self, name: str, category: str):
-        object = VariableTextLayoutObject(name, category, f"id_{random_id(10)}")
+        object = VariableTextLayoutObject(name=name, category=category, id=f"id_{random_id(10)}")
+        self.dict.add_object(object)
+
+    def add_counter_object(self, name: str, category: str):
+        object = CounterTextLayoutObject(name=name, category=category, id=f"id_{random_id(10)}")
         self.dict.add_object(object)
 
     def _create_canvas_object(self, obj: UNION_OBJECT):
@@ -363,11 +367,14 @@ class CustomSpinbox(tk.LabelFrame):
         return self.value.get()
 
 class CustomFontCombobox(tk.LabelFrame):
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, width=18, *args, **kwargs):
         tk.LabelFrame.__init__(self, parent, *args, **kwargs)
-        self.box = ttk.Combobox(self, width=18, values=os.listdir("StreamHelper/Font"))
+        self.box = ttk.Combobox(self, width=width, values=os.listdir("StreamHelper/Font"), state="readonly")
         self.box.pack(padx=2, pady=2)
-        self.box.current(0)
+        if "meiryo.ttc" in os.listdir("StreamHelper/Font"):
+            self.set("meiryo.ttc")
+        else:
+            self.box.current(0)
 
     def set(self, value: str):
         self.box.set(value)
@@ -408,7 +415,8 @@ class LayoutObjectViewer:
         if "Text" in object.cls:
             font_frame = tk.Frame(box_frame)
             font_frame.grid(row=3, column=0, columnspan=2, padx=2, pady=2)
-            self.font_box = CustomFontCombobox(font_frame, text="Font")
+            self.font_box = CustomFontCombobox(font_frame, 30, text="Font")
+            self.font_box.box.bind("<<ComboboxSelected>>", lambda event: self.font_update())
             self.font_box.pack(padx=2, pady=2)
 
         button_frame = tk.Frame(self.frame)
@@ -419,15 +427,18 @@ class LayoutObjectViewer:
         down_button.pack(side=tk.BOTTOM, padx=2, pady=5)
 
     def size_update(self):
-        self.width_box.set(self.object.data.width)
-        self.heigth_box.set(self.object.data.height)
+        self.width_box.set(self.object.width)
+        self.heigth_box.set(self.object.height)
 
     def position_update(self, position):
-        self.object.data.position = position
+        self.object.position = position
         self.pos_left_box.set(position[0])
         self.pos_top_box.set(position[1])
         self.pos_right_box.set(position[2])
         self.pos_bottom_box.set(position[3])
+
+    def font_update(self):
+        self.object.font = self.font_box.get()
 
     def re_pack(self):
         self.frame.pack()
@@ -442,13 +453,10 @@ class LayoutObjectViewer:
         self.method(self.object.id, False)
 
 
-
-
-
 class LayoutObjectCustomList:
     def __init__(self, canvas: CustomCanvas, dataframe):
-        self.dict = {}
-        self.canvas = canvas
+        self.dict: dict[str, LayoutObjectViewer] = {}
+        self.canvas: CustomCanvas = canvas
         self.frame = dataframe
 
     def add_object(self, obj: UNION_OBJECT):

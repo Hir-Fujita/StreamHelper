@@ -126,7 +126,10 @@ class NewWindow:
 class PlayerRegisterWidget(NewWindow):
     def __init__(self, manager: Manager):
         super().__init__(manager)
-        self.widget_list = {}
+        self.widget_list: Union[dict[str, tk.Entry],
+                                dict[str, ttk.Combobox],
+                                dict[str, tk.Button],
+                                dict[str, tk.Label],] = {}
 
     def get_window_title(self):
         return f"プレイヤー登録画面__{self.manager.game.title}"
@@ -144,7 +147,7 @@ class PlayerRegisterWidget(NewWindow):
         left_widget_list = [
             [tk.Entry, {"width":23}, "名前"],
             [ttk.Combobox, {"width":20, "values":[character.name  for character in self.manager.game.character_list]}, "使用キャラ"],
-            [ttk.Entry, {"width":23}, "所属チーム"]
+            [tk.Entry, {"width":23}, "所属チーム"]
         ]
         for index, widget in enumerate(left_widget_list):
             self._create_widget_add_label(index, left_frame, widget[0], widget[1], widget[2], True)
@@ -318,7 +321,6 @@ class StreamLayoutWidget(NewWindow):
             self.canvas.add_image_object(text, frame.parent_label)
 
     def _canvas_create_variable_text_object(self, frame: CustomLabelFrame, text=False):
-        print(text)
         if not text:
             if frame.box.get() == "":
                 messagebox.showerror("Error", "Comboboxが選択されていません", parent=self.window)
@@ -327,10 +329,16 @@ class StreamLayoutWidget(NewWindow):
         else:
             self.canvas.add_text_object(text, frame.parent_label)
 
+    def _canvas_create_counter_object(self, text):
+        self.canvas.add_counter_object(text, "カウンター")
+
+    def test(self):
+        from Object import LayoutCollection
+        LayoutCollection(self.canvas.dict)
 
     def window_create(self):
         super().window_create()
-        self.menu.add_command(label="レイアウトオブジェクト保存")
+        self.menu.add_command(label="レイアウトオブジェクト保存", command=lambda:self.test())
         self.menu.add_command(label="レイアウトオブジェクト読み込み")
 
         left_frame = ScrollFrame(self.window)
@@ -380,6 +388,7 @@ class StreamLayoutWidget(NewWindow):
         counter_label_frame = CustomLabelFrame(left_frame.frame, text="カウンター")
         counter_label_frame.pack(fill=tk.X, pady=5)
         counter_label_frame.create_button("数字を追加")
+        counter_label_frame.widgets["数字を追加"].config(command=lambda: self._canvas_create_counter_object("数字"))
         counter_label_frame.create_button("カウンター用画像を追加")
 
         right_frame = ScrollFrame(self.window)

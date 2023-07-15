@@ -123,17 +123,21 @@ def return_class_name(object):
         return "VariableImageLayoutObject"
     if isinstance(object, VariableTextLayoutObject):
         return "VariableTextLayoutObject"
+    if isinstance(object, CounterTextLayoutObject):
+        return "CounterTextLayoutObject"
 
 
 def layout_image_create(object):
     _class = return_class_name(object)
-    print(_class)
     if "Image" in _class:
         size = (200, 200)
         color = "blue"
     elif "Text" in _class:
         size = (300, 60)
         color = "red"
+    if "Counter" in _class:
+        size = (100, 100)
+        color = "yellow"
     image = Image.new("RGBA", size, (255, 255, 255, 100))
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype("StreamHelper\Font\meiryo.ttc", 20)
@@ -158,8 +162,9 @@ def layout_image_create(object):
 
 
 
-
 class LayoutObject:
+    image: Image.Image
+
     def update_size(self, width: int, height: int):
         self.width = width
         self.height = height
@@ -170,79 +175,114 @@ class LayoutObject:
     def update_image(self):
         image = self.image.copy()
         # 画像処理
-        self.data.width, self.data.height = image.size
+        self.width, self.height = image.size
         self.image_tk = ImageTk.PhotoImage(image)
 
     def resize(self, size: Tuple[int, int]):
         image = self.image.copy().resize(size)
-        self.data.width, self.data.height = image.size
+        self.width, self.height = image.size
         self.image_tk = ImageTk.PhotoImage(image)
 
 
-
-
-
 @dataclass
-class ImageLayoutData:
-    width: int = 0
-    height: int = 0
-    position: list = field(default_factory=list)
-
-@dataclass
-class ConstImageLayoutData:
-    image: Image = None
-    width: int = 0
-    height: int = 0
-    position: list = field(default_factory=list)
-
 class ConstImageLayoutObject(LayoutObject):
+    image: Image.Image
+    name: str
+    id: str
+    width: Union[int, float] = 0
+    height: Union[int, float] = 0
+    position: "list[int, int]" = field(default_factory=list)
+    cls: str = "ConstImageLayoutObject"
+
     def __init__(self, image_path: str, id: str):
-        self.cls = "ConstImageLayoutObject"
-        self.data = ConstImageLayoutData()
         self.image = Image.open(image_path)
         self.name = os.path.basename(image_path)
         self.id = id
+        self.width = self.image.size[0]
+        self.height = self.image.size[1]
 
+@dataclass
 class VariableImageLayoutObject(LayoutObject):
+    image: Image.Image = None
+    name: str = ""
+    id: str = ""
+    category: str = ""
+    width: Union[int, float] = 0
+    height: Union[int, float] = 0
+    position: "list[int, int]" = field(default_factory=list)
+    cls: str = "VariableImageLayoutObject"
+
     def __init__(self, name: str, category: str, id: str):
-        self.cls = "VariableImageLayoutObject"
-        self.data = ImageLayoutData()
         self.name = name
         self.category = category
         self.id = id
         self.image = layout_image_create(self)
-
+        self.width = self.image.size[0]
+        self.height = self.image.size[1]
 
 
 @dataclass
-class TextLayoutData:
-    font: str = ""
-    width: int = 0
-    height: int = 0
-    position: list = field(default_factory=list)
-
-@dataclass
-class ConstTextLayoutData:
-    text: str = ""
-    font: str = ""
-    width: int = 0
-    height: int = 0
-    position: list = field(default_factory=list)
-
 class ConstTextLayoutObject(LayoutObject):
-    def __init__(self, name):
-        self.cls = "ConstTextLayoutObject"
-        self.data = TextLayoutData()
-        self.name = name
+    image: Image.Image
+    name: str
+    font: str
+    cls: str = "ConstTextLayoutObject"
 
+
+@dataclass
 class VariableTextLayoutObject(LayoutObject):
-    def __init__(self, name: str, category: str, id: str):
-        self.cls = "VariableTextLayoutObject"
-        self.data = TextLayoutData()
+    image: Image.Image
+    name: str
+    id: str
+    width: Union[int, float] = 0
+    height: Union[int, float] = 0
+    position: "list[int, int]" = field(default_factory=list)
+    font: str = "meiryo.ttc"
+    cls: str = "VariableTextLayoutObject"
+
+    def  __init__(self, name: str, category: str, id: str):
         self.name = name
         self.category = category
         self.id = id
         self.image = layout_image_create(self)
+        self.width = self.image.size[0]
+        self.height = self.image.size[1]
+
+@dataclass
+class CounterTextLayoutObject(LayoutObject):
+    image: Image.Image
+    name: str
+    id: str
+    width: Union[int, float] = 0
+    height: Union[int, float] = 0
+    position: "list[int, int]" = field(default_factory=list)
+    font: str = "meiryo.ttc"
+    cls: str = "CounterTextLayoutObject"
+
+    def  __init__(self, name: str, category: str, id: str):
+        self.name = name
+        self.category = category
+        self.id = id
+        self.image = layout_image_create(self)
+        self.width = self.image.size[0]
+        self.height = self.image.size[1]
+
+@dataclass
+class CounterImageLayoutObject(LayoutObject):
+    def __init__(self):
+        pass
+        # フォルダを指定して中の画像ファイルを連番で保持する
+
+
+
+class LayoutCollection:
+    import Canvas
+    def __init__(self, list: Canvas.LayoutObjectCustomList):
+        self.list = list.dict.values()
+        self.width = max([obj.object.position[1] for obj in self.list])
+        self.height = max([obj.object.position[3] for obj in self.list])
+        print(self.width, self.height)
+        [print(obj.object) for obj in self.list]
 
 
 

@@ -114,28 +114,14 @@ class Team(Object):
             self.data.player_list.pop(-1)
 
 
-def return_class_name(object):
-    if isinstance(object, ConstImageLayoutObject):
-        return "ConstImageLayoutObject"
-    if isinstance(object, ConstTextLayoutObject):
-        return "ConstTextLayoutObject"
-    if isinstance(object, VariableImageLayoutObject):
-        return "VariableImageLayoutObject"
-    if isinstance(object, VariableTextLayoutObject):
-        return "VariableTextLayoutObject"
-    if isinstance(object, CounterTextLayoutObject):
-        return "CounterTextLayoutObject"
-
-
 def layout_image_create(object):
-    _class = return_class_name(object)
-    if "Image" in _class:
+    if "Image" in object.cls:
         size = (200, 200)
         color = "blue"
-    elif "Text" in _class:
+    elif "Text" in object.cls:
         size = (300, 60)
         color = "red"
-    if "Counter" in _class:
+    if "Counter" in object.cls:
         size = (100, 100)
         color = "yellow"
     image = Image.new("RGBA", size, (255, 255, 255, 100))
@@ -191,7 +177,7 @@ class ConstImageLayoutObject(LayoutObject):
     id: str
     width: Union[int, float] = 0
     height: Union[int, float] = 0
-    position: "list[int, int]" = field(default_factory=list)
+    position: "list[int]" = field(default_factory=list)
     cls: str = "ConstImageLayoutObject"
 
     def __init__(self, image_path: str, id: str):
@@ -209,7 +195,7 @@ class VariableImageLayoutObject(LayoutObject):
     category: str = ""
     width: Union[int, float] = 0
     height: Union[int, float] = 0
-    position: "list[int, int]" = field(default_factory=list)
+    position: "list[int]" = field(default_factory=list)
     cls: str = "VariableImageLayoutObject"
 
     def __init__(self, name: str, category: str, id: str):
@@ -231,12 +217,13 @@ class ConstTextLayoutObject(LayoutObject):
 
 @dataclass
 class VariableTextLayoutObject(LayoutObject):
-    image: Image.Image
-    name: str
-    id: str
+    image: Image.Image = None
+    name: str = ""
+    id: str = ""
+    category: str = ""
     width: Union[int, float] = 0
     height: Union[int, float] = 0
-    position: "list[int, int]" = field(default_factory=list)
+    position: "list[int]" = field(default_factory=list)
     font: str = "meiryo.ttc"
     cls: str = "VariableTextLayoutObject"
 
@@ -255,7 +242,7 @@ class CounterTextLayoutObject(LayoutObject):
     id: str
     width: Union[int, float] = 0
     height: Union[int, float] = 0
-    position: "list[int, int]" = field(default_factory=list)
+    position: "list[int]" = field(default_factory=list)
     font: str = "meiryo.ttc"
     cls: str = "CounterTextLayoutObject"
 
@@ -269,9 +256,25 @@ class CounterTextLayoutObject(LayoutObject):
 
 @dataclass
 class CounterImageLayoutObject(LayoutObject):
-    def __init__(self):
-        pass
-        # フォルダを指定して中の画像ファイルを連番で保持する
+    image: Image.Image
+    image_list: "dict[str, Image.Image]" = field(default_factory=dict)
+    name: str = ""
+    id: str = ""
+    category: str = ""
+    width: Union[int, float] = 0
+    height: Union[int, float] = 0
+    position: "list[int]" = field(default_factory=list)
+    length: int = 0
+    cls: str = "CounterImageLayoutObject"
+
+    def __init__(self, name: str, category: str, id: str, folder_path: str):
+        self.name = name
+        self.category = category
+        self.id = id
+        self.image = layout_image_create(self)
+        self.image_list = {path: Image.open(f"{folder_path}/{path}") for path in os.listdir(folder_path)}
+
+    # フォルダを指定して中の画像ファイルを連番で保持する
 
 
 

@@ -91,14 +91,18 @@ class NewWindow:
         image_tk = ImageTk.PhotoImage(image)
         return image_tk
 
-    def _save_filedialogwindow(self, save_name: str, title: str, category: str) -> str:
+    def _save_filedialogwindow(self, save_name: str, title: str, category: str="", parent_folder: str="") -> str:
+        if parent_folder:
+            save_folder = f"./StreamHelper/{parent_folder}"
+        else:
+            save_folder = f"./StreamHelper/Gametitle/{self.manager.game.title}/{category}/"
         filepath = filedialog.asksaveasfilename(
             title=title,
             parent=self.window,
             initialfile=save_name,
             defaultextension=".shd",
             filetypes=[("StreamHelper_datafile", ".shd")],
-            initialdir=f"./StreamHelper/Gametitle/{self.manager.game.title}/{category}/"
+            initialdir=save_folder
         )
         return filepath
 
@@ -342,13 +346,14 @@ class StreamLayoutWidget(NewWindow):
             self.canvas.add_counter_image_object("画像", "カウンター", folder_path)
 
 
-    def test(self):
+    def save_LayoutCollection(self):
         from Object import LayoutCollection
-        LayoutCollection(self.canvas.dict)
+        save_data = LayoutCollection(self.canvas.dict)
+        filepath = self._save_filedialogwindow(title="LayoutObject保存", parent_folder="LayoutObject")
 
     def window_create(self):
         super().window_create()
-        self.menu.add_command(label="レイアウトオブジェクト保存", command=lambda:self.test())
+        self.menu.add_command(label="レイアウトオブジェクト保存", command=lambda:self.save_LayoutCollection())
         self.menu.add_command(label="レイアウトオブジェクト読み込み")
 
         left_frame = ScrollFrame(self.window)

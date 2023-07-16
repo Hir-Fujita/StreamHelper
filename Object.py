@@ -272,14 +272,24 @@ class CounterImageLayoutObject(LayoutObject):
         self.category = category
         self.id = id
         self.image = layout_image_create(self)
-        self.image_list = {path: Image.open(f"{folder_path}/{path}") for path in os.listdir(folder_path)}
+        self.image_list = {os.path.splitext(path)[0]: Image.open(f"{folder_path}/{path}") for path in os.listdir(folder_path)}
 
-    # フォルダを指定して中の画像ファイルを連番で保持する
+UNION_OBJECT = Union[
+    ConstTextLayoutObject,
+    ConstImageLayoutObject,
+    VariableImageLayoutObject,
+    VariableTextLayoutObject,
+    CounterTextLayoutObject,
+    CounterImageLayoutObject
+    ]
 
-
-
-class LayoutCollection:
-    import Canvas
+import Canvas
+@dataclass
+class LayoutCollection(Object):
+    list: "list[UNION_OBJECT]" = field(default_factory=list)
+    width: int = 0
+    height: int = 0
+    position: "list[int]" = field(default_factory=list)
     def __init__(self, list: Canvas.LayoutObjectCustomList):
         self.list = list.dict.values()
         self.width = max([obj.object.position[1] for obj in self.list])
@@ -287,6 +297,8 @@ class LayoutCollection:
         print(self.width, self.height)
         [print(obj.object) for obj in self.list]
 
+    def save(self, filepath):
+        super().save(filepath)
 
 
 if __name__ == "__main__":

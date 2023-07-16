@@ -6,10 +6,10 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image
 from typing import Union, Callable
-from Object import ConstImageLayoutObject, ConstTextLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject
+from Object import ConstImageLayoutObject, ConstTextLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject, CounterImageLayoutObject
 import random, string
 
-UNION_OBJECT = Union[ConstTextLayoutObject, ConstImageLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject]
+UNION_OBJECT = Union[ConstTextLayoutObject, ConstImageLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject, CounterImageLayoutObject]
 def random_id(n):
     return str(random.randrange(10**(n-1),10**n))
 
@@ -91,6 +91,10 @@ class CustomCanvas(tk.Canvas):
 
     def add_counter_object(self, name: str, category: str):
         object = CounterTextLayoutObject(name=name, category=category, id=f"id_{random_id(10)}")
+        self.dict.add_object(object)
+
+    def add_counter_image_object(self, name: str, category: str, folder_path: str):
+        object = CounterImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}", folder_path=folder_path)
         self.dict.add_object(object)
 
     def _create_canvas_object(self, obj: UNION_OBJECT):

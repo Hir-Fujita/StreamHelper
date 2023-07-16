@@ -329,8 +329,18 @@ class StreamLayoutWidget(NewWindow):
         else:
             self.canvas.add_text_object(text, frame.parent_label)
 
-    def _canvas_create_counter_object(self, text):
-        self.canvas.add_counter_object(text, "カウンター")
+    def _canvas_create_counter_object(self):
+        self.canvas.add_counter_object("数字", "カウンター")
+
+    def _canvas_create_counter_image_object(self):
+        folder_path = filedialog.askdirectory(
+            title="カウンター画像フォルダ選択",
+            parent=self.window,
+            initialdir = "StreamHelper/Counter"
+        )
+        if folder_path:
+            self.canvas.add_counter_image_object("画像", "カウンター", folder_path)
+
 
     def test(self):
         from Object import LayoutCollection
@@ -388,8 +398,9 @@ class StreamLayoutWidget(NewWindow):
         counter_label_frame = CustomLabelFrame(left_frame.frame, text="カウンター")
         counter_label_frame.pack(fill=tk.X, pady=5)
         counter_label_frame.create_button("数字を追加")
-        counter_label_frame.widgets["数字を追加"].config(command=lambda: self._canvas_create_counter_object("数字"))
+        counter_label_frame.widgets["数字を追加"].config(command=lambda: self._canvas_create_counter_object())
         counter_label_frame.create_button("カウンター用画像を追加")
+        counter_label_frame.widgets["カウンター用画像を追加"].config(command=lambda: self._canvas_create_counter_image_object())
 
         right_frame = ScrollFrame(self.window)
         right_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=True)

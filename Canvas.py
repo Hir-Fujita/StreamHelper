@@ -463,6 +463,10 @@ class LayoutObjectCustomList:
         self.canvas: CustomCanvas = canvas
         self.frame = dataframe
 
+    def load(self, list: "list[LayoutObjectViewer]"):
+        self.dict = {obj.object.id: obj for obj in list}
+        print(self.dict)
+
     def add_object(self, obj: UNION_OBJECT):
         obj.update_image()
         self.dict[obj.id] = LayoutObjectViewer(obj, self.frame, self.layer_update)

@@ -13,6 +13,12 @@ from Canvas import ScrollFrame, CustomLabelFrame, CustomCanvas
 NAME = "FightingGameStreamHelper"
 VERSION = "0.1"
 
+EXTENSION_DICT = {
+    ".shd":[("StreamHelper_datafile", ".shd")],
+    ".jpg":[("Image file", ".png .jpg")],
+    ".png":[("Image file", ".png .jpg")]
+}
+
 # tkinterのCanvasは配置時のサイズと実際のクリックイベントで取得できる座標にズレが有る
 
 class Application(tk.Frame):
@@ -98,19 +104,17 @@ class NewWindow:
         image_tk = ImageTk.PhotoImage(image)
         return image_tk
 
-    def _save_filedialogwindow(self, save_name: str, title: str, category: str="", parent_folder: str="") -> str:
-        if parent_folder:
-            save_folder = f"./StreamHelper/{parent_folder}"
-        else:
-            save_folder = f"./StreamHelper/Gametitle/{self.manager.game.title}/{category}/"
-        print(parent_folder)
+    def _save_filedialogwindow(self, window_title: str, filetype: str, filename: str="", save_folder: str="") -> str:
+        folder = "StreamHelper"
+        if save_folder:
+            folder = f"{folder}/{save_folder}"
         filepath = filedialog.asksaveasfilename(
-            title=title,
+            title=window_title,
             parent=self.window,
-            initialfile=save_name,
-            defaultextension=".shd",
-            filetypes=[("StreamHelper_datafile", ".shd")],
-            initialdir=save_folder
+            initialfile=filename,
+            defaultextension=filetype,
+            filetypes=EXTENSION_DICT[filetype],
+            initialdir=folder
         )
         return filepath
 
@@ -118,19 +122,16 @@ class NewWindow:
         if self.window is not None:
             self.window.destroy()
 
-    def _open_filedialogwindow(self, title: str, category: str=None) -> str:
-        if category is not None:
-            initialdir = f"StreamHelper/Gametitle/{self.manager.game.title}/{category}"
-            filetypes=[("StreamHelper_datafile", ".shd")]
-        else:
-            initialdir = "StreamHelper"
-            filetypes = [("Image file", ".png .jpg")]
+    def _open_filedialogwindow(self, window_title: str, filetype: str, open_folder: str="") -> str:
+        folder = "StreamHelper"
+        if open_folder:
+            folder = f"{folder}/{open_folder}"
         filepath = filedialog.askopenfilename(
-            title=title,
+            title=window_title,
             multiple=False,
             parent=self.window,
-            initialdir=initialdir,
-            filetypes=filetypes,
+            initialdir=folder,
+            filetypes=EXTENSION_DICT[filetype],
         )
         return filepath
 
@@ -187,13 +188,13 @@ class PlayerRegisterWidget(NewWindow):
 
     def _save_data(self):
         filename = self.widget_list["名前"].get()
-        save_path = super()._save_filedialogwindow(filename, "プレイヤーデータ保存", "Player")
+        save_path = super()._save_filedialogwindow("プレイヤーデータ保存", ".shd", filename, f"Gametitle/{self.manager.game.title}/Player")
         if save_path:
             self.object.update_player_data(self.widget_list)
             self.object.save(save_path)
 
     def _load_data(self):
-        open_path = super()._open_filedialogwindow("プレイヤーデータ読み込み", "Player")
+        open_path = super()._open_filedialogwindow("プレイヤーデータ読み込み", ".shd", f"Gametitle/{self.manager.game.title}/Player")
         if open_path:
             self.object.load_player_data(open_path)
             self.widget_list["名前"].delete(0, tk.END)
@@ -205,7 +206,7 @@ class PlayerRegisterWidget(NewWindow):
             self.widget_list["プレイヤー画像"].config(image=self.object_image)
 
     def _change_player_image(self):
-        image_path = super()._open_filedialogwindow("画像データ読み込み")
+        image_path = super()._open_filedialogwindow("画像データ読み込み", ".jpg")
         if image_path:
             self.object.change_player_image(image_path)
             self.object_image = self._create_imageTK(image_path, (200, 200))
@@ -257,7 +258,7 @@ class TeamRegisterWidget(NewWindow):
         self.player_entry_box_update()
 
     def _change_team_image(self):
-        image_path = super()._open_filedialogwindow("画像データ読み込み")
+        image_path = super()._open_filedialogwindow("画像データ読み込み", "jpg")
         if image_path:
             self.object.change_team_image(image_path)
             self.object_image = self._create_imageTK(image_path, (100, 100))
@@ -277,12 +278,12 @@ class TeamRegisterWidget(NewWindow):
     def _save_data(self):
         filename = self.team_name_entry_box.get()
         self.object.data.name = filename
-        save_path = super()._save_filedialogwindow(filename, "チームデータ保存", "Team")
+        save_path = super()._save_filedialogwindow("チームデータ保存", ".shd", filename, f"Gametitle/{self.manager.game.title}/Team")
         if save_path:
             self.object.save(save_path)
 
     def _load_data(self):
-        open_path = super()._open_filedialogwindow("チームデータ読み込み", "Team")
+        open_path = super()._open_filedialogwindow("チームデータ読み込み", ".shd", f"Gametitle/{self.manager.game.title}/Team")
         if open_path:
             self.object.load_team_data(open_path)
             self.team_name_entry_box.delete(0, tk.END)
@@ -319,7 +320,7 @@ class LayoutObjectCreateWidget(NewWindow):
         return "1500x600"
 
     def _canvas_create_const_image_object(self):
-        filepath = self._open_filedialogwindow("画像読み込み")
+        filepath = self._open_filedialogwindow("画像読み込み", ".jpg")
         if filepath:
             self.canvas.add_const_image_object(filepath)
 
@@ -353,19 +354,26 @@ class LayoutObjectCreateWidget(NewWindow):
         if folder_path:
             self.canvas.add_counter_image_object("画像", "カウンター", folder_path)
 
-
     def save_LayoutCollection(self):
         from Object import LayoutCollection
         if len(self.canvas.dict.dict) > 0:
             save_data = LayoutCollection(self.canvas.dict)
-            filepath = self._save_filedialogwindow(save_name="", title="LayoutObject保存", parent_folder="LayoutObject")
+            filepath = self._save_filedialogwindow("LayoutObject保存", ".shd", save_folder="LayoutObject")
             if filepath:
                 save_data.save(filepath)
+
+    def load_LayoutCollection(self):
+        from Object import LayoutCollection
+        filepath = self._open_filedialogwindow("LayoutObject読み込み", ".shd", "LayoutObject")
+        print(filepath)
+        if filepath:
+            layout_colelction = LayoutCollection.load(filepath)
+            self.canvas.dict.load(layout_colelction)
 
     def window_create(self):
         super().window_create()
         self.menu.add_command(label="レイアウトオブジェクト保存", command=lambda:self.save_LayoutCollection())
-        self.menu.add_command(label="レイアウトオブジェクト読み込み")
+        self.menu.add_command(label="レイアウトオブジェクト読み込み", command=lambda:self.load_LayoutCollection())
 
         left_frame = ScrollFrame(self.window)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)

@@ -290,16 +290,21 @@ class LayoutCollection:
     width: int = 0
     height: int = 0
     position: "list[int]" = field(default_factory=list)
-    def __init__(self, list: Canvas.LayoutObjectCustomList):
-        self.list = list.dict.values()
+    def __init__(self, costomlist: Canvas.LayoutObjectCustomList):
+        self.list = list(costomlist.dict.values())
         self.width = max([obj.object.position[1] for obj in self.list])
         self.height = max([obj.object.position[3] for obj in self.list])
-        print(self.width, self.height)
-        [print(obj.object) for obj in self.list]
 
     def save(self, filepath):
         with open(filepath, "wb") as f:
             pickle.dump(self, f)
+
+    @classmethod
+    def load(cls, filepath):
+        with open(filepath, "rb") as f:
+            obj = pickle.load(f)
+            if isinstance(obj, cls):
+                return pickle.load(f)
 
 
 if __name__ == "__main__":

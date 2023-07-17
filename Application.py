@@ -53,11 +53,18 @@ class Application(tk.Frame):
             command=self.team_reg_window.window_create
         )
 
-        self.stream_layout_window = StreamLayoutWidget(self.manager)
+        self.layout_object_create_window = LayoutObjectCreateWidget(self.manager)
         self.menu_widget.add_command(
             label="レイアウトオブジェクト作成",
+            command=self.layout_object_create_window.window_create
+        )
+
+        self.stream_layout_window = StreamLayoutWidget(self.manager)
+        self.menu_widget.add_command(
+            label="レイアウト設定",
             command=self.stream_layout_window.window_create
         )
+
 
 
 class NewWindow:
@@ -96,6 +103,7 @@ class NewWindow:
             save_folder = f"./StreamHelper/{parent_folder}"
         else:
             save_folder = f"./StreamHelper/Gametitle/{self.manager.game.title}/{category}/"
+        print(parent_folder)
         filepath = filedialog.asksaveasfilename(
             title=title,
             parent=self.window,
@@ -300,7 +308,7 @@ class TeamRegisterWidget(NewWindow):
             entry_box.grid(row=num, column=1)
 
 
-class StreamLayoutWidget(NewWindow):
+class LayoutObjectCreateWidget(NewWindow):
     def __init__(self, manager: Manager):
         super().__init__(manager)
 
@@ -348,8 +356,11 @@ class StreamLayoutWidget(NewWindow):
 
     def save_LayoutCollection(self):
         from Object import LayoutCollection
-        save_data = LayoutCollection(self.canvas.dict)
-        filepath = self._save_filedialogwindow(title="LayoutObject保存", parent_folder="LayoutObject")
+        if len(self.canvas.dict.dict) > 0:
+            save_data = LayoutCollection(self.canvas.dict)
+            filepath = self._save_filedialogwindow(save_name="", title="LayoutObject保存", parent_folder="LayoutObject")
+            if filepath:
+                save_data.save(filepath)
 
     def window_create(self):
         super().window_create()
@@ -434,7 +445,21 @@ class StreamLayoutWidget(NewWindow):
             self.canvas.config(bg=color[1])
 
 
+class StreamLayoutWidget(NewWindow):
+    def __init__(self, manager: Manager):
+        super().__init__(manager)
 
+    def get_window_title(self):
+        return f"レイアウト画面__{self.manager.game.title}"
+
+    def get_window_size(self):
+        return "1500x600"
+
+    def window_create(self):
+        super().window_create()
+        self.menu.add_cascade(label="オブジェクト読み込み")
+        self.menu.add_cascade(label="レイアウト読み込み")
+        self.menu.add_cascade(label="レイアウト保存")
 
 
 def main():

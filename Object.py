@@ -285,7 +285,7 @@ UNION_OBJECT = Union[
 
 import Canvas
 @dataclass
-class LayoutCollection(Object):
+class LayoutCollection:
     list: "list[UNION_OBJECT]" = field(default_factory=list)
     width: int = 0
     height: int = 0
@@ -298,7 +298,8 @@ class LayoutCollection(Object):
         [print(obj.object) for obj in self.list]
 
     def save(self, filepath):
-        super().save(filepath)
+        with open(filepath, "wb") as f:
+            pickle.dump(self, f)
 
 
 if __name__ == "__main__":

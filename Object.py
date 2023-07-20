@@ -7,6 +7,14 @@ import os
 import pickle
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 
+def save(filepath, data):
+    with open(filepath, "wb") as f:
+        pickle.dump(data, f)
+
+def load(filepath):
+    with open(filepath, "rb") as f:
+        return pickle.load(f)
+
 @dataclass
 class GameTitle:
     title: str
@@ -114,42 +122,107 @@ class Team(Object):
             self.data.player_list.pop(-1)
 
 
-def layout_image_create(object):
-    if "Image" in object.cls:
-        size = (200, 200)
-        color = "blue"
-    elif "Text" in object.cls:
-        size = (300, 60)
-        color = "red"
-    if "Counter" in object.cls:
-        size = (100, 100)
-        color = "yellow"
-    image = Image.new("RGBA", size, (255, 255, 255, 100))
-    draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype("StreamHelper\Font\meiryo.ttc", 20)
-    draw.rectangle((0, 0, size[0]-1, size[1]-1),
-                   width=5,
-                   outline=color
-                   )
-    draw.text((0, 0),
-              object.category,
-              fill="white",
-              stroke_width=2,
-              stroke_fill='black',
-              font=font)
-    fontsize = draw.textsize(object.name, font)
-    draw.text((size[0]/2 -fontsize[0]/2, size[1]/2 -fontsize[1]/2),
-              object.name,
-              fill="white",
-              stroke_width=2,
-              stroke_fill='black',
-              font=font)
-    return image
+
+@dataclass
+class LayoutData:
+    name: str = ""
+    category: str = ""
+    id: str = ""
+    cls: str = ""
+    font: str = ""
+    width: Union[int, float] = 0
+    height: Union[int, float] = 0
+    position: "list[int]" = field(default_factory=list)
+    image: Image.Image = None
+
+def kw_check(dic: dict):
+    if "cls" not in dic.keys():
+        dic["cls"] = ""
+    if "position" not in dic.keys():
+        dic["position"] = [0, 0, 0, 0]
+    if "image" not in dic.keys():
+        dic["image"] = None
+    if "font" not in dic.keys():
+        dic["font"] = ""
+    if "width" not in dic.keys():
+        dic["width"] = 0
+    if "height" not in dic.keys():
+        dic["height"] = 0
+    return dic
 
 
 
-class LayoutObject:
-    image: Image.Image
+class LayoutElement:
+    def __init__(self, name: str, category: str, id: str, **kwargs):
+        self.name: str = name
+        self.category: str = category
+        self.id: str = id
+        kw = kw_check(kwargs)
+        self.cls = kw["cls"]
+        self.position: "list[int]" = kw["position"]
+        self.image: Image.Image = kw["image"]
+        self.font = kw["font"]
+        self.width = kw["width"]
+        self.height = kw["height"]
+
+    def save_cls(self) -> LayoutData:
+        datacls = LayoutData(
+            name = self.name,
+            category = self.category,
+            id = self.id,
+            cls = self.cls,
+            font = self.font,
+            width = self.width,
+            height = self.height,
+            position = self.position,
+            image = self.image
+        )
+        return datacls
+
+    @classmethod
+    def load_cls(cls, datacls: LayoutData):
+        return cls(
+            datacls.name,
+            datacls.category,
+            datacls.id,
+            cls = datacls.cls,
+            position = datacls.position,
+            image = datacls.image,
+            font = datacls.font,
+            width = datacls.width,
+            height = datacls.height,
+        )
+
+    def create_layout_image(self, size: Tuple[int], color: str, category: str, name: str):
+        canvas_size = (960, 540)
+        image = Image.new("RGBA", size, (255, 255, 255, 100))
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.truetype("StreamHelper\Font\meiryo.ttc", 20)
+        draw.rectangle((0, 0, size[0]-1, size[1]-1),
+                        width=5,
+                        outline=color
+                    )
+        draw.text((0, 0),
+                  category,
+                  fill="white",
+                  stroke_width=2,
+                  stroke_fill='black',
+                  font=font)
+        fontsize = draw.textsize(name, font)
+        draw.text((size[0]/2 -fontsize[0]/2, size[1]/2 -fontsize[1]/2),
+                  name,
+                  fill="white",
+                  stroke_width=2,
+                  stroke_fill='black',
+                  font=font)
+        self.width, self.height = size
+        self.position = [
+            canvas_size[0] /2 - self.width /2,
+            canvas_size[1] /2 - self.height /2,
+            canvas_size[0] /2 + self.width /2,
+            canvas_size[1] /2 + self.height /2,
+        ]
+        return image
 
     def update_size(self, width: int, height: int):
         self.width = width
@@ -158,121 +231,110 @@ class LayoutObject:
     def update_position(self, position: tuple):
         self.position = position
 
-    def update_image(self):
-        image = self.image.copy()
-        # 画像処理
-        self.width, self.height = image.size
-        self.image_tk = ImageTk.PhotoImage(image)
-
     def resize(self, size: Tuple[int, int]):
         image = self.image.copy().resize(size)
         self.width, self.height = image.size
         self.image_tk = ImageTk.PhotoImage(image)
 
 
-@dataclass
-class ConstImageLayoutObject(LayoutObject):
-    image: Image.Image
-    name: str
-    id: str
-    width: Union[int, float] = 0
-    height: Union[int, float] = 0
-    position: "list[int]" = field(default_factory=list)
-    cls: str = "ConstImageLayoutObject"
+class ConstImageLayoutObject(LayoutElement):
+    def __init__(self, image_path: str, category: str, id: str, **kwargs):
+        super().__init__(os.path.basename(image_path), category, id, **kwargs)
+        self.cls = "ConstImageLayoutObject"
+        if self.image is None:
+            self._create_layout_image(image_path)
+        else:
+            self.resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(self.image)
 
-    def __init__(self, image_path: str, id: str):
-        self.image = Image.open(image_path)
-        self.name = os.path.basename(image_path)
-        self.id = id
-        self.width = self.image.size[0]
-        self.height = self.image.size[1]
+    def _create_layout_image(self, filepath):
+        self.image = Image.open(filepath)
+        self.width, self.height = self.image.size
+        canvas_size = (960, 540)
+        self.position = [
+            canvas_size[0] /2 - self.width /2,
+            canvas_size[1] /2 - self.height /2,
+            canvas_size[0] /2 + self.width /2,
+            canvas_size[1] /2 + self.height /2,
+        ]
 
-@dataclass
-class VariableImageLayoutObject(LayoutObject):
-    image: Image.Image = None
-    name: str = ""
-    id: str = ""
-    category: str = ""
-    width: Union[int, float] = 0
-    height: Union[int, float] = 0
-    position: "list[int]" = field(default_factory=list)
-    cls: str = "VariableImageLayoutObject"
+class VariableImageLayoutObject(LayoutElement):
+    def __init__(self, name: str, category: str, id: str, **kwargs):
+        super().__init__(name, category, id, **kwargs)
+        self.cls = "VariableImageLayoutObject"
+        if self.image is None:
+            self.image = self.create_layout_image()
+        else:
+            self.resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(self.image)
 
-    def __init__(self, name: str, category: str, id: str):
-        self.name = name
-        self.category = category
-        self.id = id
-        self.image = layout_image_create(self)
-        self.width = self.image.size[0]
-        self.height = self.image.size[1]
+    def create_layout_image(self) -> Image.Image:
+        return super().create_layout_image((200, 200), "blue", self.category, self.name)
 
+class ConstTextLayoutObject(LayoutElement):
+    def __init__(self, name: str, category: str, id: str, **kwargs):
+        super().__init__(name, category, id, **kwargs)
+        self.cls = "ConstTextLayoutObject"
+        if self.image is None:
+            self.image = self.create_layout_image()
+        else:
+            self.resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(self.image)
 
-@dataclass
-class ConstTextLayoutObject(LayoutObject):
-    image: Image.Image
-    name: str
-    font: str
-    cls: str = "ConstTextLayoutObject"
+    def create_layout_image(self):
+        # テキストエレメント用のレイアウトイメージを作成します。
+        pass
 
+class VariableTextLayoutObject(LayoutElement):
+    def __init__(self, name: str, category: str, id: str, **kwargs):
+        super().__init__(name, category, id, **kwargs)
+        self.cls = "VariableTextLayoutObject"
+        if self.image is None:
+            self.image = self.create_layout_image()
+        else:
+            self.resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(self.image)
 
-@dataclass
-class VariableTextLayoutObject(LayoutObject):
-    image: Image.Image = None
-    name: str = ""
-    id: str = ""
-    category: str = ""
-    width: Union[int, float] = 0
-    height: Union[int, float] = 0
-    position: "list[int]" = field(default_factory=list)
-    font: str = "meiryo.ttc"
-    cls: str = "VariableTextLayoutObject"
+    def create_layout_image(self):
+        return super().create_layout_image((300, 60), "red", self.category, self.name)
 
-    def  __init__(self, name: str, category: str, id: str):
-        self.name = name
-        self.category = category
-        self.id = id
-        self.image = layout_image_create(self)
-        self.width = self.image.size[0]
-        self.height = self.image.size[1]
+class CounterTextLayoutObject(LayoutElement):
+    def __init__(self, name: str, category: str, id: str, **kwargs):
+        super().__init__(name, category, id, **kwargs)
+        self.cls = "CounterTextLayoutObject"
+        if self.image is None:
+            self.image = self.create_layout_image()
+        else:
+            self.resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(self.image)
 
-@dataclass
-class CounterTextLayoutObject(LayoutObject):
-    image: Image.Image
-    name: str
-    id: str
-    width: Union[int, float] = 0
-    height: Union[int, float] = 0
-    position: "list[int]" = field(default_factory=list)
-    font: str = "meiryo.ttc"
-    cls: str = "CounterTextLayoutObject"
+    def create_layout_image(self):
+        return super().create_layout_image((100, 100), "yellow", self.category, self.name)
 
-    def  __init__(self, name: str, category: str, id: str):
-        self.name = name
-        self.category = category
-        self.id = id
-        self.image = layout_image_create(self)
-        self.width = self.image.size[0]
-        self.height = self.image.size[1]
+class CounterImageLayoutObject(LayoutElement):
+    def __init__(self, name: str, category: str, id: str, folder_path: str="", **kwargs):
+        super().__init__(name, category, id, **kwargs)
+        self.cls = "CounterImageLayoutObject"
+        if self.image is None:
+            self.image = self.create_layout_image()
+        else:
+            self.resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(self.image)
+        if folder_path:
+            self.image_list = {os.path.splitext(path)[0]: Image.open(f"{folder_path}/{path}") for path in os.listdir(folder_path)}
 
-@dataclass
-class CounterImageLayoutObject(LayoutObject):
-    image: Image.Image
-    image_list: "dict[str, Image.Image]" = field(default_factory=dict)
-    name: str = ""
-    id: str = ""
-    category: str = ""
-    width: Union[int, float] = 0
-    height: Union[int, float] = 0
-    position: "list[int]" = field(default_factory=list)
-    length: int = 0
-    cls: str = "CounterImageLayoutObject"
+    def create_layout_image(self):
+        return super().create_layout_image((100, 100), "yellow", self.category, self.name)
 
-    def __init__(self, name: str, category: str, id: str, folder_path: str):
-        self.name = name
-        self.category = category
-        self.id = id
-        self.image = layout_image_create(self)
-        self.image_list = {os.path.splitext(path)[0]: Image.open(f"{folder_path}/{path}") for path in os.listdir(folder_path)}
+    def save_cls(self) -> LayoutData:
+        save_data = super().save_cls()
+        save_data.image_list = self.image_list
+        return save_data
+
+    def load_cls(self, datacls: LayoutData):
+        load_data = super().load_cls(datacls)
+        load_data.image_list = datacls.image_list
+        return load_data
 
 UNION_OBJECT = Union[
     ConstTextLayoutObject,
@@ -283,6 +345,24 @@ UNION_OBJECT = Union[
     CounterImageLayoutObject
     ]
 
+
+
+def layout_element_check(element: Union[LayoutData, str]):
+    OBJECT_DICT = {
+    "ConstTextLayoutObject": ConstTextLayoutObject,
+    "ConstImageLayoutObject": ConstImageLayoutObject,
+    "VariableImageLayoutObject": VariableImageLayoutObject,
+    "VariableTextLayoutObject": VariableTextLayoutObject,
+    "CounterTextLayoutObject": CounterTextLayoutObject,
+    "CounterImageLayoutObject": CounterImageLayoutObject
+    }
+    if isinstance(element, str):
+        return OBJECT_DICT[element]
+    else:
+        return OBJECT_DICT[element.cls]
+
+
+
 import Canvas
 @dataclass
 class LayoutCollection:
@@ -290,16 +370,21 @@ class LayoutCollection:
     width: int = 0
     height: int = 0
     position: "list[int]" = field(default_factory=list)
+
     def __init__(self, list: Canvas.LayoutObjectCustomList):
-        self.list = list.dict.values()
-        self.width = max([obj.object.position[1] for obj in self.list])
-        self.height = max([obj.object.position[3] for obj in self.list])
-        print(self.width, self.height)
-        [print(obj.object) for obj in self.list]
+        self.list = [obj.object for obj in list.dict.values()]
+        self.width = max([obj.position[1] for obj in self.list])
+        self.height = max([obj.position[3] for obj in self.list])
 
     def save(self, filepath):
+        save_object = [obj.save_cls() for obj in self.list]
         with open(filepath, "wb") as f:
-            pickle.dump(self, f)
+            pickle.dump(save_object, f)
+
+    @classmethod
+    def load(self, filepath: str) -> dataclass:
+        with open(filepath, "rb") as f:
+            return pickle.load(f)
 
 
 if __name__ == "__main__":

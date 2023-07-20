@@ -6,10 +6,11 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image
 from typing import Union, Callable
-from Object import ConstImageLayoutObject, ConstTextLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject, CounterImageLayoutObject
+import Object as Obj
+# from Object import ConstImageLayoutObject, ConstTextLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject, CounterImageLayoutObject
 import random, string
 
-UNION_OBJECT = Union[ConstTextLayoutObject, ConstImageLayoutObject, VariableImageLayoutObject, VariableTextLayoutObject, CounterTextLayoutObject, CounterImageLayoutObject]
+UNION_OBJECT = Union[Obj.ConstTextLayoutObject, Obj.ConstImageLayoutObject, Obj.VariableImageLayoutObject, Obj.VariableTextLayoutObject, Obj.CounterTextLayoutObject, Obj.CounterImageLayoutObject]
 def random_id(n):
     return str(random.randrange(10**(n-1),10**n))
 
@@ -77,30 +78,26 @@ class CustomCanvas(tk.Canvas):
         self.menu = tk.Menu(self, tearoff=0)
         self.menu.add_command(label="Delete", command=self.delete_object)
 
+    def save_layouts(self) -> "list[Obj.LayoutElement]":
+        save_list = [obj.object.save_cls() for obj in self.dict.dict.values()]
+        return save_list
+
+    def add_object(self, class_name: str, name: str, category: str):
+        object = Obj.layout_element_check(class_name)(name, category, f"id_{random_id(10)}")
+        self.dict.add_object(object)
+
     def add_const_image_object(self, path: str):
-        object = ConstImageLayoutObject(path, f"id_{random_id(10)}")
-        self.dict.add_object(object)
-
-    def add_image_object(self, name: str, category: str):
-        object = VariableImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}")
-        self.dict.add_object(object)
-
-    def add_text_object(self, name: str, category: str):
-        object = VariableTextLayoutObject(name=name, category=category, id=f"id_{random_id(10)}")
-        self.dict.add_object(object)
-
-    def add_counter_object(self, name: str, category: str):
-        object = CounterTextLayoutObject(name=name, category=category, id=f"id_{random_id(10)}")
+        object = Obj.ConstImageLayoutObject(path, "Const", f"id_{random_id(10)}")
         self.dict.add_object(object)
 
     def add_counter_image_object(self, name: str, category: str, folder_path: str):
-        object = CounterImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}", folder_path=folder_path)
+        object = Obj.CounterImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}", folder_path=folder_path)
         self.dict.add_object(object)
 
     def _create_canvas_object(self, obj: UNION_OBJECT):
         self.create_image(
-            480,
-            270,
+            (obj.position[2] + obj.position[0])/2,
+            (obj.position[3] + obj.position[1])/2,
             anchor="center",
             image=obj.image_tk,
             tag=obj.id
@@ -457,6 +454,7 @@ class LayoutObjectViewer:
         self.method(self.object.id, False)
 
 
+
 class LayoutObjectCustomList:
     def __init__(self, canvas: CustomCanvas, dataframe):
         self.dict: dict[str, LayoutObjectViewer] = {}
@@ -464,14 +462,19 @@ class LayoutObjectCustomList:
         self.frame = dataframe
 
     def add_object(self, obj: UNION_OBJECT):
-        obj.update_image()
         self.dict[obj.id] = LayoutObjectViewer(obj, self.frame, self.layer_update)
         self.dict[obj.id].frame.bind("<Button-1>", lambda event:self.canvas.image_select(obj.id))
         self.canvas._create_canvas_object(obj)
 
     def delete_object(self, id: str):
+        self.canvas.delete(id)
         self.dict[id].frame.destroy()
         del self.dict[id]
+
+    def load_object_list(self, load_list: "list[Obj.LayoutElement]"):
+        self.canvas.rect_delete()
+        [self.delete_object(obj.object.id) for obj in list(self.dict.values())]
+        [self.add_object(Obj.layout_element_check(obj).load_cls(obj)) for obj in load_list]
 
     def object_position_update(self, id: str, position: "list[int]"):
         self.dict[id].position_update(position)

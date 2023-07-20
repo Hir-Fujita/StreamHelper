@@ -7,13 +7,18 @@ import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser, messagebox
 from PIL import Image, ImageTk
 from Manager import Manager
-from Object import Player, Team
+import Object as Obj
+# from Object import Player, Team
 from Canvas import ScrollFrame, CustomLabelFrame, CustomCanvas
 
 NAME = "FightingGameStreamHelper"
 VERSION = "0.1"
 
-# tkinterのCanvasは配置時のサイズと実際のクリックイベントで取得できる座標にズレが有る
+FILE_EXTENTION = {
+    ".shd":[("StreamHelper_datafile", ".shd")],
+    ".jpg":[("Image file", ".png"), ("Image file", ".jpg")],
+    ".png":[("Image file", ".png"), ("Image file", ".jpg")]
+}
 
 class Application(tk.Frame):
     def __init__(self, master: tk.Tk):
@@ -103,13 +108,12 @@ class NewWindow:
             save_folder = f"./StreamHelper/{parent_folder}"
         else:
             save_folder = f"./StreamHelper/Gametitle/{self.manager.game.title}/{category}/"
-        print(parent_folder)
         filepath = filedialog.asksaveasfilename(
             title=title,
             parent=self.window,
             initialfile=save_name,
             defaultextension=".shd",
-            filetypes=[("StreamHelper_datafile", ".shd")],
+            filetypes=FILE_EXTENTION[".shd"],
             initialdir=save_folder
         )
         return filepath
@@ -118,19 +122,17 @@ class NewWindow:
         if self.window is not None:
             self.window.destroy()
 
-    def _open_filedialogwindow(self, title: str, category: str=None) -> str:
-        if category is not None:
-            initialdir = f"StreamHelper/Gametitle/{self.manager.game.title}/{category}"
-            filetypes=[("StreamHelper_datafile", ".shd")]
+    def _open_filedialogwindow(self, title: str, category: str="", parent_folder: str="", load_file_extention: str=".shd") -> str:
+        if parent_folder:
+            load_folder = f"./StreamHelper/{parent_folder}"
         else:
-            initialdir = "StreamHelper"
-            filetypes = [("Image file", ".png .jpg")]
+            load_folder = f"./StreamHelper/Gametitle/{self.manager.game.title}/{category}/"
         filepath = filedialog.askopenfilename(
             title=title,
             multiple=False,
             parent=self.window,
-            initialdir=initialdir,
-            filetypes=filetypes,
+            initialdir=load_folder,
+            filetypes=FILE_EXTENTION[load_file_extention]
         )
         return filepath
 
@@ -151,7 +153,7 @@ class PlayerRegisterWidget(NewWindow):
 
     def window_create(self):
         super().window_create()
-        self.object = Player(self.manager.game.title)
+        self.object = Obj.Player(self.manager.game.title)
         self.menu.add_command(label="プレイヤー保存", command=self._save_data)
         self.menu.add_command(label="プレイヤー読み込み", command=self._load_data)
 
@@ -205,7 +207,7 @@ class PlayerRegisterWidget(NewWindow):
             self.widget_list["プレイヤー画像"].config(image=self.object_image)
 
     def _change_player_image(self):
-        image_path = super()._open_filedialogwindow("画像データ読み込み")
+        image_path = super()._open_filedialogwindow("画像データ読み込み", load_file_extention=".jpg")
         if image_path:
             self.object.change_player_image(image_path)
             self.object_image = self._create_imageTK(image_path, (200, 200))
@@ -226,7 +228,7 @@ class TeamRegisterWidget(NewWindow):
         super().window_create()
         self.menu.add_command(label="チーム保存", command=self._save_data)
         self.menu.add_command(label="チーム読み込み", command=self._load_data)
-        self.object = Team(self.manager.game.title)
+        self.object = Obj.Team(self.manager.game.title)
 
         top_frame = tk.Frame(self.window)
         top_frame.pack()
@@ -257,7 +259,7 @@ class TeamRegisterWidget(NewWindow):
         self.player_entry_box_update()
 
     def _change_team_image(self):
-        image_path = super()._open_filedialogwindow("画像データ読み込み")
+        image_path = super()._open_filedialogwindow("画像データ読み込み", load_file_extention=".jpg")
         if image_path:
             self.object.change_team_image(image_path)
             self.object_image = self._create_imageTK(image_path, (100, 100))
@@ -318,31 +320,16 @@ class LayoutObjectCreateWidget(NewWindow):
     def get_window_size(self):
         return "1500x600"
 
+    def _canvas_create_object(self, classname: str, name: str, category: str):
+        if name == "":
+            messagebox.showerror("Error", "Comboboxが選択されていません", parent=self.window)
+        else:
+            self.canvas.add_object(classname, name, category)
+
     def _canvas_create_const_image_object(self):
-        filepath = self._open_filedialogwindow("画像読み込み")
+        filepath = self._open_filedialogwindow("画像読み込み", load_file_extention=".jpg", parent_folder=".")
         if filepath:
             self.canvas.add_const_image_object(filepath)
-
-    def _canvas_create_variable_image_object(self, frame: CustomLabelFrame, text=False):
-        if not text:
-            if frame.box.get() == "":
-                messagebox.showerror("Error", "Comboboxが選択されていません", parent=self.window)
-            else:
-                self.canvas.add_image_object(frame.box.get(), frame.parent_label)
-        else:
-            self.canvas.add_image_object(text, frame.parent_label)
-
-    def _canvas_create_variable_text_object(self, frame: CustomLabelFrame, text=False):
-        if not text:
-            if frame.box.get() == "":
-                messagebox.showerror("Error", "Comboboxが選択されていません", parent=self.window)
-            else:
-                self.canvas.add_text_object(frame.box.get(), frame.parent_label)
-        else:
-            self.canvas.add_text_object(text, frame.parent_label)
-
-    def _canvas_create_counter_object(self):
-        self.canvas.add_counter_object("数字", "カウンター")
 
     def _canvas_create_counter_image_object(self):
         folder_path = filedialog.askdirectory(
@@ -351,21 +338,26 @@ class LayoutObjectCreateWidget(NewWindow):
             initialdir = "StreamHelper/Counter"
         )
         if folder_path:
-            self.canvas.add_counter_image_object("画像", "カウンター", folder_path)
+            files = [file for file in os.listdir(folder_path) if "jpg" in file or "png" in file]
+            if len(files):
+                self.canvas.add_counter_image_object("画像", "カウンター", folder_path)
 
 
-    def save_LayoutCollection(self):
-        from Object import LayoutCollection
-        if len(self.canvas.dict.dict) > 0:
-            save_data = LayoutCollection(self.canvas.dict)
-            filepath = self._save_filedialogwindow(save_name="", title="LayoutObject保存", parent_folder="LayoutObject")
-            if filepath:
-                save_data.save(filepath)
+    def save_layouts(self):
+        filepath = self._save_filedialogwindow("", "LayoutObject読み込み", parent_folder="LayoutObject")
+        if filepath:
+            Obj.save(filepath, self.canvas.save_layouts())
+
+    def load_layouts(self):
+        filepath = self._open_filedialogwindow("LayoutObject読み込み", parent_folder="LayoutObject")
+        if filepath:
+            load_file = Obj.load(filepath)
+            self.canvas.dict.load_object_list(load_file)
 
     def window_create(self):
         super().window_create()
-        self.menu.add_command(label="レイアウトオブジェクト保存", command=lambda:self.save_LayoutCollection())
-        self.menu.add_command(label="レイアウトオブジェクト読み込み")
+        self.menu.add_command(label="レイアウトオブジェクト保存", command=lambda:self.save_layouts())
+        self.menu.add_command(label="レイアウトオブジェクト読み込み", command=lambda:self.load_layouts())
 
         left_frame = ScrollFrame(self.window)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
@@ -387,34 +379,48 @@ class LayoutObjectCreateWidget(NewWindow):
         player_image_frame.pack(padx=5, pady=5)
         player_image_frame.create_commbo_box(["プレイヤー画像", "キャラクター画像", "所属チームアイコン"])
         player_image_frame.create_button("生成")
-        player_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_image_object(player_image_frame))
+        player_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_object("VariableImageLayoutObject",
+                                                                                             player_image_frame.box.get(),
+                                                                                             "Player"))
         player_text_frame = CustomLabelFrame(player_label_frame, text="テキスト")
         player_text_frame.pack(padx=5, pady=5)
         player_text_frame.create_commbo_box(["プレイヤー名", "キャラクター名", "所属チーム名"])
         player_text_frame.create_button("生成")
-        player_text_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_text_object(player_text_frame))
+        player_text_frame.widgets["生成"].config(command=lambda: self._canvas_create_object("VariableTextLayoutObject",
+                                                                                          player_text_frame.box.get(),
+                                                                                          "Player"))
 
         team_label_frame = CustomLabelFrame(left_frame.frame, text="チーム")
         team_label_frame.pack(fill=tk.X, pady=5)
         team_label_frame.create_button("チーム名生成")
-        team_label_frame.widgets["チーム名生成"].config(command=lambda: self._canvas_create_variable_text_object(team_label_frame, "チーム名"))
+        team_label_frame.widgets["チーム名生成"].config(command=lambda: self._canvas_create_object("VariableTextLayoutObject",
+                                                                                             "チーム名",
+                                                                                             "Team"))
         team_label_frame.create_button("チーム画像生成")
-        team_label_frame.widgets["チーム画像生成"].config(command=lambda: self._canvas_create_variable_image_object(team_label_frame, "チーム画像"))
+        team_label_frame.widgets["チーム画像生成"].config(command=lambda: self._canvas_create_object("VariableImageLayoutObject",
+                                                                                              "チーム画像",
+                                                                                              "Team"))
         team_image_frame = CustomLabelFrame(team_label_frame, text="画像")
         team_image_frame.pack(padx=5, pady=5)
         team_image_frame.create_commbo_box(["プレイヤー画像", "キャラクター画像"])
         team_image_frame.create_button("生成")
-        team_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_image_object(team_image_frame))
+        team_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_object("VariableImageLayoutObject",
+                                                                                         team_image_frame.box.get(),
+                                                                                         "Team"))
         team_text_frame = CustomLabelFrame(team_label_frame, text="テキスト")
         team_text_frame.pack(padx=5, pady=5)
         team_text_frame.create_commbo_box(["プレイヤー名", "キャラクター名"])
         team_text_frame.create_button("生成")
-        team_text_frame.widgets["生成"].config(command=lambda: self._canvas_create_variable_text_object(team_text_frame))
+        team_text_frame.widgets["生成"].config(command=lambda: self._canvas_create_object("VariableTextLayoutObject",
+                                                                                        team_text_frame.box.get(),
+                                                                                        "Team"))
 
         counter_label_frame = CustomLabelFrame(left_frame.frame, text="カウンター")
         counter_label_frame.pack(fill=tk.X, pady=5)
         counter_label_frame.create_button("数字を追加")
-        counter_label_frame.widgets["数字を追加"].config(command=lambda: self._canvas_create_counter_object())
+        counter_label_frame.widgets["数字を追加"].config(command=lambda: self._canvas_create_object("CounterTextLayoutObject",
+                                                                                               "数字",
+                                                                                               "Counter"))
         counter_label_frame.create_button("カウンター用画像を追加")
         counter_label_frame.widgets["カウンター用画像を追加"].config(command=lambda: self._canvas_create_counter_image_object())
 

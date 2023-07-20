@@ -386,6 +386,13 @@ class LayoutCollection:
         with open(filepath, "rb") as f:
             return pickle.load(f)
 
+    @classmethod
+    def load(cls, filepath):
+        with open(filepath, "rb") as f:
+            obj = pickle.load(f)
+            if isinstance(obj, cls):
+                return pickle.load(f)
+
 
 if __name__ == "__main__":
     print(__name__)

@@ -461,6 +461,10 @@ class LayoutObjectCustomList:
         self.canvas: CustomCanvas = canvas
         self.frame = dataframe
 
+    def load(self, list: "list[LayoutObjectViewer]"):
+        self.dict = {obj.object.id: obj for obj in list}
+        print(self.dict)
+
     def add_object(self, obj: UNION_OBJECT):
         self.dict[obj.id] = LayoutObjectViewer(obj, self.frame, self.layer_update)
         self.dict[obj.id].frame.bind("<Button-1>", lambda event:self.canvas.image_select(obj.id))

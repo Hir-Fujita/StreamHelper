@@ -336,6 +336,9 @@ class CustomCanvas(tk.Canvas):
             self.on_mouse_leave()
 
 
+class LayoutObjectCanvas(CustomCanvas):
+    def __init__(self, parent, dataframe, *args, **kwargs):
+        super().__init__(parent, dataframe, *args, **kwargs)
 
 
 
@@ -477,7 +480,7 @@ class LayoutObjectCustomList:
 
     def load_object_list(self, load_list: "list[Obj.LayoutElement]"):
         self.canvas.rect_delete()
-        [self.delete_object(obj.object.id) for obj in list(self.dict.values())]
+        [self.delete_object(obj.object.id) for obj in list(self.dict.values()) if isinstance(obj, LayoutObjectViewer)]
         [self.add_object(Obj.layout_element_check(obj).load_cls(obj)) for obj in load_list]
 
     def object_position_update(self, id: str, position: "list[int]"):

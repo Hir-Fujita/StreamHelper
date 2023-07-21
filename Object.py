@@ -136,20 +136,13 @@ class LayoutData:
     image: Image.Image = None
 
 def kw_check(dic: dict):
-    if "cls" not in dic.keys():
-        dic["cls"] = ""
-    if "position" not in dic.keys():
-        dic["position"] = [0, 0, 0, 0]
-    if "image" not in dic.keys():
-        dic["image"] = None
-    if "font" not in dic.keys():
-        dic["font"] = ""
-    if "width" not in dic.keys():
-        dic["width"] = 0
-    if "height" not in dic.keys():
-        dic["height"] = 0
+    dic.setdefault("cls", "")
+    dic.setdefault("position", [0, 0, 0, 0])
+    dic.setdefault("image", None)
+    dic.setdefault("font", "")
+    dic.setdefault("width", 0)
+    dic.setdefault("height", 0)
     return dic
-
 
 
 class LayoutElement:
@@ -392,6 +385,9 @@ class LayoutCollection:
             obj = pickle.load(f)
             if isinstance(obj, cls):
                 return pickle.load(f)
+
+
+
 
 
 if __name__ == "__main__":

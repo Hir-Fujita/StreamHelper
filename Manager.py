@@ -3,10 +3,11 @@
 
 from typing import Union
 import os
-from Object import GameTitle, Player, Team
+from Object import GameTitle, Player, Team, LayoutManager
 
 class Manager:
     def __init__(self):
+        self.layout = LayoutManager()
         self.gametitle_list = os.listdir("StreamHelper/Gametitle")
         self.gametitle_select(0)
 

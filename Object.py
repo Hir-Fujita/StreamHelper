@@ -356,37 +356,38 @@ def layout_element_check(element: Union[LayoutData, str]):
 
 
 
-import Canvas
-@dataclass
 class LayoutCollection:
-    list: "list[UNION_OBJECT]" = field(default_factory=list)
-    width: int = 0
-    height: int = 0
-    position: "list[int]" = field(default_factory=list)
+    def __init__(self, init_list: "list[LayoutData]"):
+        self.list = init_list
+        self.image = self.create_image()
+        self.width, self.height = self.image.size
+        self.id = ""
 
-    def __init__(self, list: Canvas.LayoutObjectCustomList):
-        self.list = [obj.object for obj in list.dict.values()]
-        self.width = max([obj.position[1] for obj in self.list])
-        self.height = max([obj.position[3] for obj in self.list])
-
-    def save(self, filepath):
-        save_object = [obj.save_cls() for obj in self.list]
-        with open(filepath, "wb") as f:
-            pickle.dump(save_object, f)
-
-    @classmethod
-    def load(self, filepath: str) -> dataclass:
-        with open(filepath, "rb") as f:
-            return pickle.load(f)
-
-    @classmethod
-    def load(cls, filepath):
-        with open(filepath, "rb") as f:
-            obj = pickle.load(f)
-            if isinstance(obj, cls):
-                return pickle.load(f)
+    def create_image(self):
+        width = max([obj.position[2] for obj in self.list])
+        height = max([obj.position[3] for obj in self.list])
+        min_x = min([obj.position[0] for obj in self.list])
+        min_y = min([obj.position[1] for obj in self.list])
+        image = Image.new("RGBA", (width, height), (255, 255, 255, 100))
+        for data in reversed(self.list):
+            x = data.position[0]
+            y = data.position[1]
+            image.paste(data.image, (x, y), mask=data.image)
+        return image.crop([min_x, min_y, width, height])
 
 
+
+class LayoutManager:
+    def __init__(self):
+        self.frame = None
+        self.layout_list: "list[LayoutCollection]" = []
+
+    def setting_add_widget_frame(self, dataframe):
+        self.frame = dataframe
+
+    def add_layout_collection(self, data: LayoutCollection):
+        data.id = ""
+        self.layout_list.append()
 
 
 

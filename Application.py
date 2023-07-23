@@ -463,24 +463,30 @@ class StreamLayoutWidget(NewWindow):
 
     def window_create(self):
         super().window_create()
-        self.menu.add_cascade(label="オブジェクト読み込み")
+        self.menu.add_cascade(label="オブジェクト読み込み", command=self.add_object)
         self.menu.add_cascade(label="レイアウト読み込み")
         self.menu.add_cascade(label="レイアウト保存")
 
-        left_frame = Canvas.ScrollFrame(self.window)
-        left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
-        frame_rock_label = tk.Label(left_frame.frame, width=10)
-        frame_rock_label.pack(side=tk.BOTTOM)
+        left_frame = tk.Frame(self.window)
+        left_frame.pack(side=tk.LEFT, padx=5)
+        canvas_back_button = tk.Button(left_frame, text="背景画像変更", width=40)
+        canvas_back_button.pack(pady=5)
 
-        right_frame = tk.Frame(self.window)
+        right_frame = Canvas.ScrollFrame(self.window)
         right_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=True)
-        canvas_back_button = tk.Button(right_frame, text="背景画像変更", width=40)
-        canvas_back_button.pack()
-        self.canvas = Canvas.LayoutObjectCanvas(right_frame, left_frame.frame, width=960, height=540, bg="green", highlightthickness=0)
+        frame_rock_label = tk.Label(right_frame.frame, width=40)
+        frame_rock_label.pack(side=tk.BOTTOM)
+        self.manager.layout.setting_add_widget_frame(right_frame)
+
+        self.canvas = Canvas.LayoutObjectCanvas(left_frame, right_frame, width=960, height=540, bg="green", highlightthickness=0)
         self.canvas.pack()
 
+
     def add_object(self):
-        pass
+        filepath = self._open_filedialogwindow("レイアウトオブジェクト読み込み", parent_folder="LayoutObject")
+        if filepath:
+            data = Obj.LayoutCollection(Obj.load(filepath))
+            print(data)
 
 
 

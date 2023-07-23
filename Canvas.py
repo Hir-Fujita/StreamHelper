@@ -67,9 +67,9 @@ class CustomLabelFrame(tk.LabelFrame):
 
 
 class CustomCanvas(tk.Canvas):
-    def __init__(self, parent, dataframe, *args, **kwargs):
+    def __init__(self, parent, *args, **kwargs):
         tk.Canvas.__init__(self, parent, *args, **kwargs)
-        self.dict = LayoutObjectCustomList(self, dataframe)
+        # self.dict = LayoutObjectCustomList(self, dataframe)
         self.bind("<Button-1>", lambda event:self.left_click(event))
         self.bind("<Button1-Motion>", lambda event:self.mouse_drag(event))
         self.bind("<ButtonRelease>", lambda event:self.mouse_release())
@@ -78,38 +78,11 @@ class CustomCanvas(tk.Canvas):
         self.menu = tk.Menu(self, tearoff=0)
         self.menu.add_command(label="Delete", command=self.delete_object)
 
-    def save_layouts(self) -> "list[Obj.LayoutElement]":
-        save_list = [obj.object.save_cls() for obj in self.dict.dict.values()]
-        return save_list
-
-    def add_object(self, class_name: str, name: str, category: str):
-        object = Obj.layout_element_check(class_name)(name, category, f"id_{random_id(10)}")
-        self.dict.add_object(object)
-
-    def add_const_image_object(self, path: str):
-        object = Obj.ConstImageLayoutObject(path, "Const", f"id_{random_id(10)}")
-        self.dict.add_object(object)
-
-    def add_counter_image_object(self, name: str, category: str, folder_path: str):
-        object = Obj.CounterImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}", folder_path=folder_path)
-        self.dict.add_object(object)
-
     def _create_canvas_object(self, obj: UNION_OBJECT):
-        self.create_image(
-            (obj.position[2] + obj.position[0])/2,
-            (obj.position[3] + obj.position[1])/2,
-            anchor="center",
-            image=obj.image_tk,
-            tag=obj.id
-            )
-        self.lower(obj.id)
-        self.object_position_update(obj.id)
+        raise NotImplementedError
 
     def delete_object(self):
-        self.rect_delete()
-        self.delete(self.tag[0])
-        self.dict.delete_object(self.tag[0])
-        self.tag = False
+        raise NotImplementedError
 
     def find_tag(self, event):
         closest_ids = self.find_closest(event.x, event.y)
@@ -148,10 +121,6 @@ class CustomCanvas(tk.Canvas):
             if "move" in tag:
                 self.dtag(tag[0], "move")
 
-    def object_position_update(self, tag):
-        position = self.find_bbox(tag)
-        self.dict.object_position_update(tag, position)
-
     def left_click(self, event):
         tag = self.find_tag(event)
         if tag:
@@ -173,12 +142,7 @@ class CustomCanvas(tk.Canvas):
                 self.menu.post(event.x_root, event.y_root)
 
     def image_select(self, image_id):
-        self.rect_delete()
-        self.move_tag_delete()
-        self.tag = (image_id, "current")
-        self.dict.label_frame_select(image_id)
-        self.addtag_withtag("move", image_id)
-        self._create_rect(self.find_bbox(image_id))
+        raise NotImplementedError
 
     def _create_rect(self, bbox):
         rect_size = 3
@@ -281,6 +245,70 @@ class CustomCanvas(tk.Canvas):
         self.config(cursor="arrow")
 
     def mouse_drag(self, event):
+        raise NotImplementedError
+
+    def resize_rect(self, event):
+        raise NotImplementedError
+
+    def mouse_release(self):
+        self.move_tag_delete()
+        if self.resize_direction:
+            self.resize_direction = False
+            self.image_select(self.tag[0])
+            self.on_mouse_leave()
+
+
+class LayoutObjectCanvas(CustomCanvas):
+    def __init__(self, parent, dataframe, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.dict = LayoutObjectCustomList(self, dataframe)
+
+    def save_layouts(self) -> "list[Obj.LayoutElement]":
+        save_list = [obj.object.save_cls() for obj in self.dict.dict.values()]
+        return save_list
+
+    def add_object(self, class_name: str, name: str, category: str):
+        object = Obj.layout_element_check(class_name)(name, category, f"id_{random_id(10)}")
+        self.dict.add_object(object)
+
+    def add_const_image_object(self, path: str):
+        object = Obj.ConstImageLayoutObject(path, "Const", f"id_{random_id(10)}")
+        self.dict.add_object(object)
+
+    def add_counter_image_object(self, name: str, category: str, folder_path: str):
+        object = Obj.CounterImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}", folder_path=folder_path)
+        self.dict.add_object(object)
+
+    def _create_canvas_object(self, obj: UNION_OBJECT):
+        self.create_image(
+            (obj.position[2] + obj.position[0])/2,
+            (obj.position[3] + obj.position[1])/2,
+            anchor="center",
+            image=obj.image_tk,
+            tag=obj.id
+            )
+        self.lower(obj.id)
+        self.object_position_update(obj.id)
+
+    def delete_object(self):
+        self.rect_delete()
+        self.delete(self.tag[0])
+        self.dict.delete_object(self.tag[0])
+        self.tag = False
+
+    def object_position_update(self, tag):
+        position = self.find_bbox(tag)
+        self.dict.object_position_update(tag, position)
+
+    def image_select(self, image_id):
+        self.rect_delete()
+        self.move_tag_delete()
+        self.tag = (image_id, "current")
+        self.dict.label_frame_select(image_id)
+        self.addtag_withtag("move", image_id)
+        self._create_rect(self.find_bbox(image_id))
+
+    def mouse_drag(self, event):
         if self.resize_direction:
             self.resize_rect(event)
         elif self.tag:
@@ -291,7 +319,7 @@ class CustomCanvas(tk.Canvas):
                 )
             self.x = event.x
             self.y = event.y
-            self.object_position_update(self.tag[0])
+        self.object_position_update(self.tag[0])
 
     def resize_rect(self, event):
         self.rect_delete()
@@ -328,18 +356,11 @@ class CustomCanvas(tk.Canvas):
             self.object_position_update(self.tag[0])
             self.dict.object_size_update(self.tag[0])
 
-    def mouse_release(self):
-        self.move_tag_delete()
-        if self.resize_direction:
-            self.resize_direction = False
-            self.image_select(self.tag[0])
-            self.on_mouse_leave()
 
-
-class LayoutObjectCanvas(CustomCanvas):
+class LayoutCanvas(CustomCanvas):
     def __init__(self, parent, dataframe, *args, **kwargs):
-        super().__init__(parent, dataframe, *args, **kwargs)
-
+        super().__init__(parent, *args, **kwargs)
+        self.manager = Obj.LayoutManager(dataframe)
 
 
 
@@ -466,7 +487,6 @@ class LayoutObjectCustomList:
 
     def load(self, list: "list[LayoutObjectViewer]"):
         self.dict = {obj.object.id: obj for obj in list}
-        print(self.dict)
 
     def add_object(self, obj: UNION_OBJECT):
         self.dict[obj.id] = LayoutObjectViewer(obj, self.frame, self.layer_update)

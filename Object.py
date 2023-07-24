@@ -357,37 +357,61 @@ def layout_element_check(element: Union[LayoutData, str]):
 
 
 class LayoutCollection:
-    def __init__(self, init_list: "list[LayoutData]"):
-        self.list = init_list
+    def __init__(self, init_list: "list[LayoutData]", id: str, name: str):
+        self.name = name
+        self.list:  "list[LayoutData]" = init_list
+        self.mirror = False
         self.image = self.create_image()
         self.width, self.height = self.image.size
-        self.id = ""
+        canvas_size = (960, 540)
+        self.position = [
+            canvas_size[0] /2 - self.width /2,
+            canvas_size[1] /2 - self.height /2,
+            canvas_size[0] /2 + self.width /2,
+            canvas_size[1] /2 + self.height /2,
+        ]
+        self.id = id
+        self.image_tk = ImageTk.PhotoImage(self.image)
 
     def create_image(self):
-        width = max([obj.position[2] for obj in self.list])
-        height = max([obj.position[3] for obj in self.list])
-        min_x = min([obj.position[0] for obj in self.list])
-        min_y = min([obj.position[1] for obj in self.list])
-        image = Image.new("RGBA", (width, height), (255, 255, 255, 100))
+        max_x = max([obj.position[2] for obj in self.list])
+        image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
         for data in reversed(self.list):
-            x = data.position[0]
+            x = max_x - (data.position[0]+data.width) if self.mirror else data.position[0]
             y = data.position[1]
             image.paste(data.image, (x, y), mask=data.image)
-        return image.crop([min_x, min_y, width, height])
+        return image.crop(image.getbbox())
 
+    def size_update(self, size: Tuple[int]):
+        self.width, self.height = size
+        image = self.image.copy().resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(image)
+
+    def mirror_update(self):
+        self.mirror = not self.mirror
+        self.image = self.create_image()
+        image = self.image.copy().resize((self.width, self.height))
+        self.image_tk = ImageTk.PhotoImage(image)
 
 
 class LayoutManager:
     def __init__(self):
         self.frame = None
-        self.layout_list: "list[LayoutCollection]" = []
+        self.layout_dic: dict[str: LayoutCollection] = {}
 
     def setting_add_widget_frame(self, dataframe):
         self.frame = dataframe
 
     def add_layout_collection(self, data: LayoutCollection):
-        data.id = ""
-        self.layout_list.append()
+        count = len([d for d in self.layout_dic.values() if data.name in d.name])
+        data.name = f"{data.name}_{count}" if count > 0 else data.name
+        self.layout_dic[data.id] = data
+
+    def position_update(self, id: str, position: "list[int]"):
+        self.layout_dic[id].position = position
+
+    def size_update(self, id: str, size: Tuple[int]):
+        self.layout_dic[id].size_update(size)
 
 
 

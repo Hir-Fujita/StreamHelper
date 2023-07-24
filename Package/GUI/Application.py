@@ -8,8 +8,8 @@ from tkinter import ttk, filedialog, colorchooser, messagebox
 from PIL import Image, ImageTk
 from Manager import Manager
 import Object as Obj
-import Widget as Wid
 import Canvas
+
 NAME = "FightingGameStreamHelper"
 VERSION = "0.1"
 
@@ -24,7 +24,10 @@ class Application(tk.Frame):
         super().__init__(master)
         master.geometry("600x200")
         master.title(f"{NAME}.ver.{VERSION}")
-        self.manager = Manager(master)
+        self.manager = Manager()
+
+        self.frame = tk.Frame(master)
+        self.frame.pack()
         self._create_menu(master)
 
     def _create_menu(self, master: tk.Tk):
@@ -338,14 +341,10 @@ class LayoutObjectCreateWidget(NewWindow):
             if len(files):
                 self.canvas.add_counter_image_object("画像", "カウンター", folder_path)
 
-
     def save_layouts(self):
-        if self.canvas.save_check():
-            filepath = self._save_filedialogwindow("", "LayoutObject読み込み", parent_folder="LayoutObject")
-            if filepath:
-                Obj.save(filepath, self.canvas.save_layouts())
-        else:
-            messagebox.showerror("Error", "Objectが画面外に配置されています\n画面内に収まるように配置してください", parent=self.window)
+        filepath = self._save_filedialogwindow("", "LayoutObject読み込み", parent_folder="LayoutObject")
+        if filepath:
+            Obj.save(filepath, self.canvas.save_layouts())
 
     def load_layouts(self):
         filepath = self._open_filedialogwindow("LayoutObject読み込み", parent_folder="LayoutObject")
@@ -358,30 +357,30 @@ class LayoutObjectCreateWidget(NewWindow):
         self.menu.add_command(label="レイアウトオブジェクト保存", command=lambda:self.save_layouts())
         self.menu.add_command(label="レイアウトオブジェクト読み込み", command=lambda:self.load_layouts())
 
-        left_frame = Wid.ScrollFrame(self.window)
+        left_frame = Canvas.ScrollFrame(self.window)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, expand=True)
         font_list = os.listdir("StreamHelper/Font")
 
-        image_label_frame = Wid.CustomLabelFrame(left_frame.frame, text="画像を追加")
+        image_label_frame = Canvas.CustomLabelFrame(left_frame.frame, text="画像を追加")
         image_label_frame.pack(fill=tk.X, pady=5)
         image_label_frame.create_button("画像読み込み")
         image_label_frame.widgets["画像読み込み"].config(command=self._canvas_create_const_image_object)
 
-        text_label_frame = Wid.CustomLabelFrame(left_frame.frame, text="テキストを追加")
+        text_label_frame = Canvas.CustomLabelFrame(left_frame.frame, text="テキストを追加")
         text_label_frame.pack(fill=tk.X, pady=5)
         text_label_frame.create_font_box(font_list)
         text_label_frame.create_button("テキスト追加")
 
-        player_label_frame = Wid.CustomLabelFrame(left_frame.frame, text="プレイヤー")
+        player_label_frame = Canvas.CustomLabelFrame(left_frame.frame, text="プレイヤー")
         player_label_frame.pack(fill=tk.X, pady=5)
-        player_image_frame = Wid.CustomLabelFrame(player_label_frame, text="画像")
+        player_image_frame = Canvas.CustomLabelFrame(player_label_frame, text="画像")
         player_image_frame.pack(padx=5, pady=5)
         player_image_frame.create_commbo_box(["プレイヤー画像", "キャラクター画像", "所属チームアイコン"])
         player_image_frame.create_button("生成")
         player_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_object("VariableImageLayoutObject",
                                                                                              player_image_frame.box.get(),
                                                                                              "Player"))
-        player_text_frame = Wid.CustomLabelFrame(player_label_frame, text="テキスト")
+        player_text_frame = Canvas.CustomLabelFrame(player_label_frame, text="テキスト")
         player_text_frame.pack(padx=5, pady=5)
         player_text_frame.create_commbo_box(["プレイヤー名", "キャラクター名", "所属チーム名"])
         player_text_frame.create_button("生成")
@@ -389,7 +388,7 @@ class LayoutObjectCreateWidget(NewWindow):
                                                                                           player_text_frame.box.get(),
                                                                                           "Player"))
 
-        team_label_frame = Wid.CustomLabelFrame(left_frame.frame, text="チーム")
+        team_label_frame = Canvas.CustomLabelFrame(left_frame.frame, text="チーム")
         team_label_frame.pack(fill=tk.X, pady=5)
         team_label_frame.create_button("チーム名生成")
         team_label_frame.widgets["チーム名生成"].config(command=lambda: self._canvas_create_object("VariableTextLayoutObject",
@@ -399,14 +398,14 @@ class LayoutObjectCreateWidget(NewWindow):
         team_label_frame.widgets["チーム画像生成"].config(command=lambda: self._canvas_create_object("VariableImageLayoutObject",
                                                                                               "チーム画像",
                                                                                               "Team"))
-        team_image_frame = Wid.CustomLabelFrame(team_label_frame, text="画像")
+        team_image_frame = Canvas.CustomLabelFrame(team_label_frame, text="画像")
         team_image_frame.pack(padx=5, pady=5)
         team_image_frame.create_commbo_box(["プレイヤー画像", "キャラクター画像"])
         team_image_frame.create_button("生成")
         team_image_frame.widgets["生成"].config(command=lambda: self._canvas_create_object("VariableImageLayoutObject",
                                                                                          team_image_frame.box.get(),
                                                                                          "Team"))
-        team_text_frame = Wid.CustomLabelFrame(team_label_frame, text="テキスト")
+        team_text_frame = Canvas.CustomLabelFrame(team_label_frame, text="テキスト")
         team_text_frame.pack(padx=5, pady=5)
         team_text_frame.create_commbo_box(["プレイヤー名", "キャラクター名"])
         team_text_frame.create_button("生成")
@@ -414,7 +413,7 @@ class LayoutObjectCreateWidget(NewWindow):
                                                                                         team_text_frame.box.get(),
                                                                                         "Team"))
 
-        counter_label_frame = Wid.CustomLabelFrame(left_frame.frame, text="カウンター")
+        counter_label_frame = Canvas.CustomLabelFrame(left_frame.frame, text="カウンター")
         counter_label_frame.pack(fill=tk.X, pady=5)
         counter_label_frame.create_button("数字を追加")
         counter_label_frame.widgets["数字を追加"].config(command=lambda: self._canvas_create_object("CounterTextLayoutObject",
@@ -423,7 +422,7 @@ class LayoutObjectCreateWidget(NewWindow):
         counter_label_frame.create_button("カウンター用画像を追加")
         counter_label_frame.widgets["カウンター用画像を追加"].config(command=lambda: self._canvas_create_counter_image_object())
 
-        right_frame = Wid.ScrollFrame(self.window)
+        right_frame = Canvas.ScrollFrame(self.window)
         right_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=True)
         frame_rock_label = tk.Label(right_frame.frame, width=40)
         frame_rock_label.pack(side=tk.BOTTOM)
@@ -458,42 +457,42 @@ class StreamLayoutWidget(NewWindow):
         return f"レイアウト画面__{self.manager.game.title}"
 
     def get_window_size(self):
-        return "1280x600"
+        return "1200x600"
 
     def window_create(self):
         super().window_create()
         self.menu.add_cascade(label="オブジェクト読み込み", command=self.add_object)
-        self.menu.add_cascade(label="レイアウト保存")
         self.menu.add_cascade(label="レイアウト読み込み")
+        self.menu.add_cascade(label="レイアウト保存")
 
         left_frame = tk.Frame(self.window)
         left_frame.pack(side=tk.LEFT, padx=5)
         canvas_back_button = tk.Button(left_frame, text="背景画像変更", width=40)
         canvas_back_button.pack(pady=5)
 
-        right_frame = Wid.ScrollFrame(self.window)
+        right_frame = Canvas.ScrollFrame(self.window)
         right_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=True)
         frame_rock_label = tk.Label(right_frame.frame, width=40)
         frame_rock_label.pack(side=tk.BOTTOM)
         self.manager.layout.setting_add_widget_frame(right_frame)
 
-        self.canvas = Canvas.LayoutCanvas(left_frame, self.manager.layout, right_frame.frame, width=960, height=540, bg="green", highlightthickness=0)
+        self.canvas = Canvas.LayoutObjectCanvas(left_frame, right_frame, width=960, height=540, bg="green", highlightthickness=0)
         self.canvas.pack()
+
 
     def add_object(self):
         filepath = self._open_filedialogwindow("レイアウトオブジェクト読み込み", parent_folder="LayoutObject")
         if filepath:
-            data = Obj.LayoutCollection(Obj.load(filepath), f"id_{self.manager.random_id(10)}", os.path.basename(filepath))
-            self.canvas.add_layout(data)
-            self.manager.frame_update()
+            data = Obj.LayoutCollection(Obj.load(filepath))
+            print(data)
 
 
 
-def run():
+def main():
 	win = tk.Tk()
 	app = Application(master=win)
 	app.mainloop()
 
 
 if __name__ == "__main__":
-    run()
+    main()

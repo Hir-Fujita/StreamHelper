@@ -9,8 +9,8 @@ from PIL import Image, ImageTk
 from Manager import Manager
 import Object as Obj
 import Widget as Wid
-import Canvas
-NAME = "FightingGameStreamHelper"
+
+NAME = "StreamHelper開発版"
 VERSION = "0.1"
 
 FILE_EXTENTION = {
@@ -23,7 +23,7 @@ class Application(tk.Frame):
     def __init__(self, master: tk.Tk):
         super().__init__(master)
         master.geometry("600x200")
-        master.title(f"{NAME}.ver.{VERSION}")
+        master.title(f"{NAME}__Ver.{VERSION}")
         self.manager = Manager(master)
         self._create_menu(master)
 
@@ -64,6 +64,12 @@ class Application(tk.Frame):
         self.menu_widget.add_command(
             label="レイアウト設定",
             command=self.stream_layout_window.window_create
+        )
+
+        self.setting_window = SettingWidget(self.manager)
+        self.menu_widget.add_command(
+            label="プログラム設定",
+            command=self.setting_window.window_create
         )
 
 
@@ -336,12 +342,12 @@ class LayoutObjectCreateWidget(NewWindow):
         if folder_path:
             files = [file for file in os.listdir(folder_path) if "jpg" in file or "png" in file]
             if len(files):
-                self.canvas.add_counter_image_object("画像", "カウンター", folder_path)
+                self.canvas.add_counter_image_object("画像", "Counter", folder_path)
 
 
     def save_layouts(self):
         if self.canvas.save_check():
-            filepath = self._save_filedialogwindow("", "LayoutObject読み込み", parent_folder="LayoutObject")
+            filepath = self._save_filedialogwindow("", "LayoutObject保存", parent_folder="LayoutObject")
             if filepath:
                 Obj.save(filepath, self.canvas.save_layouts())
         else:
@@ -441,7 +447,7 @@ class LayoutObjectCreateWidget(NewWindow):
         canvas_size_box.current(0)
         canvas_size_box.pack(side=tk.LEFT)
 
-        self.canvas = Canvas.LayoutObjectCanvas(canvas_frame, right_frame.frame, width=960, height=540, bg="green", highlightthickness=0)
+        self.canvas = Wid.LayoutObjectCanvas(canvas_frame, right_frame.frame, width=960, height=540, bg="green", highlightthickness=0)
         self.canvas.pack(padx=5, pady=5)
 
     def canvas_color_change(self):
@@ -477,8 +483,9 @@ class StreamLayoutWidget(NewWindow):
         frame_rock_label.pack(side=tk.BOTTOM)
         self.manager.layout.setting_add_widget_frame(right_frame)
 
-        self.canvas = Canvas.LayoutCanvas(left_frame, self.manager.layout, right_frame.frame, width=960, height=540, bg="green", highlightthickness=0)
+        self.canvas = Wid.LayoutCanvas(left_frame, self.manager.layout, right_frame.frame, width=960, height=540, bg="green", highlightthickness=0)
         self.canvas.pack()
+        self.canvas.re_create()
 
     def add_object(self):
         filepath = self._open_filedialogwindow("レイアウトオブジェクト読み込み", parent_folder="LayoutObject")
@@ -487,6 +494,16 @@ class StreamLayoutWidget(NewWindow):
             self.canvas.add_layout(data)
             self.manager.frame_update()
 
+
+class SettingWidget(NewWindow):
+    def __init__(self, manager: Manager):
+        super().__init__(manager)
+
+    def get_window_title(self):
+        return f"プログラム設定"
+
+    def get_window_size(self):
+        return "1280x600"
 
 
 def run():

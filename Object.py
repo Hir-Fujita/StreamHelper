@@ -22,6 +22,7 @@ class GameTitle:
     def __post_init__(self):
         self._create_character_list(self.title)
         self.player_list = os.listdir(f"StreamHelper/Gametitle/{self.title}/Player")
+        self.team_list = os.listdir(f"StreamHelper/Gametitle/{self.title}/Team")
 
     def _create_character_list(self, title: str):
         character_list = os.listdir(f"StreamHelper/Gametitle/{title}/character/")
@@ -95,6 +96,7 @@ class Player(Object):
 @dataclass
 class TeamData:
     name: str = ""
+    title: str = ""
     length: int = 1
     player_list: list = field(default_factory=list)
     image: Image = None
@@ -108,6 +110,13 @@ class Team(Object):
 
     def change_team_image(self, image_path: str):
         self.data.image = Image.open(image_path)
+
+    @classmethod
+    def load(cls, filepath: str):
+        data = Object.load(filepath)
+        team = cls(data.title)
+        team.data = data
+        return team
 
     def load_team_data(self, filepath: str):
         self.data = super().load(filepath)
@@ -134,6 +143,7 @@ class LayoutData:
     height: Union[int, float] = 0
     position: "list[int]" = field(default_factory=list)
     image: Image.Image = None
+    image_list: "dict[Image.Image]" = None
 
 def kw_check(dic: dict):
     dic.setdefault("cls", "")
@@ -142,6 +152,7 @@ def kw_check(dic: dict):
     dic.setdefault("font", "")
     dic.setdefault("width", 0)
     dic.setdefault("height", 0)
+    dic.setdefault("image_list", None)
     return dic
 
 
@@ -157,6 +168,7 @@ class LayoutElement:
         self.font = kw["font"]
         self.width = kw["width"]
         self.height = kw["height"]
+        self.image_list: "dict[Image.Image]" = None
 
     def save_cls(self) -> LayoutData:
         datacls = LayoutData(
@@ -168,12 +180,13 @@ class LayoutElement:
             width = self.width,
             height = self.height,
             position = self.position,
-            image = self.image
+            image = self.image,
+            image_list = self.image_list
         )
         return datacls
 
     @classmethod
-    def load_cls(cls, datacls: LayoutData):
+    def load_cls(cls, datacls: LayoutData) -> LayoutData:
         return cls(
             datacls.name,
             datacls.category,
@@ -225,7 +238,8 @@ class LayoutElement:
         self.position = position
 
     def resize(self, size: Tuple[int, int]):
-        image = self.image.copy().resize(size)
+        image = self.image.copy()
+        image = image.resize(size)
         self.width, self.height = image.size
         self.image_tk = ImageTk.PhotoImage(image)
 
@@ -236,9 +250,9 @@ class ConstImageLayoutObject(LayoutElement):
         self.cls = "ConstImageLayoutObject"
         if self.image is None:
             self._create_layout_image(image_path)
+            self.image_tk = ImageTk.PhotoImage(self.image)
         else:
             self.resize((self.width, self.height))
-        self.image_tk = ImageTk.PhotoImage(self.image)
 
     def _create_layout_image(self, filepath):
         self.image = Image.open(filepath)
@@ -257,9 +271,9 @@ class VariableImageLayoutObject(LayoutElement):
         self.cls = "VariableImageLayoutObject"
         if self.image is None:
             self.image = self.create_layout_image()
+            self.image_tk = ImageTk.PhotoImage(self.image)
         else:
             self.resize((self.width, self.height))
-        self.image_tk = ImageTk.PhotoImage(self.image)
 
     def create_layout_image(self) -> Image.Image:
         return super().create_layout_image((200, 200), "blue", self.category, self.name)
@@ -270,9 +284,9 @@ class ConstTextLayoutObject(LayoutElement):
         self.cls = "ConstTextLayoutObject"
         if self.image is None:
             self.image = self.create_layout_image()
+            self.image_tk = ImageTk.PhotoImage(self.image)
         else:
             self.resize((self.width, self.height))
-        self.image_tk = ImageTk.PhotoImage(self.image)
 
     def create_layout_image(self):
         # テキストエレメント用のレイアウトイメージを作成します。
@@ -284,9 +298,9 @@ class VariableTextLayoutObject(LayoutElement):
         self.cls = "VariableTextLayoutObject"
         if self.image is None:
             self.image = self.create_layout_image()
+            self.image_tk = ImageTk.PhotoImage(self.image)
         else:
             self.resize((self.width, self.height))
-        self.image_tk = ImageTk.PhotoImage(self.image)
 
     def create_layout_image(self):
         return super().create_layout_image((300, 60), "red", self.category, self.name)
@@ -297,9 +311,9 @@ class CounterTextLayoutObject(LayoutElement):
         self.cls = "CounterTextLayoutObject"
         if self.image is None:
             self.image = self.create_layout_image()
+            self.image_tk = ImageTk.PhotoImage(self.image)
         else:
             self.resize((self.width, self.height))
-        self.image_tk = ImageTk.PhotoImage(self.image)
 
     def create_layout_image(self):
         return super().create_layout_image((100, 100), "yellow", self.category, self.name)
@@ -310,9 +324,9 @@ class CounterImageLayoutObject(LayoutElement):
         self.cls = "CounterImageLayoutObject"
         if self.image is None:
             self.image = self.create_layout_image()
+            self.image_tk = ImageTk.PhotoImage(self.image)
         else:
             self.resize((self.width, self.height))
-        self.image_tk = ImageTk.PhotoImage(self.image)
         if folder_path:
             self.image_list = {os.path.splitext(path)[0]: Image.open(f"{folder_path}/{path}") for path in os.listdir(folder_path)}
 
@@ -324,7 +338,8 @@ class CounterImageLayoutObject(LayoutElement):
         save_data.image_list = self.image_list
         return save_data
 
-    def load_cls(self, datacls: LayoutData):
+    @classmethod
+    def load_cls(cls, datacls: LayoutData):
         load_data = super().load_cls(datacls)
         load_data.image_list = datacls.image_list
         return load_data
@@ -340,7 +355,7 @@ UNION_OBJECT = Union[
 
 
 
-def layout_element_check(element: Union[LayoutData, str]):
+def layout_element_check(element: Union[LayoutData, str]) -> UNION_OBJECT:
     OBJECT_DICT = {
     "ConstTextLayoutObject": ConstTextLayoutObject,
     "ConstImageLayoutObject": ConstImageLayoutObject,
@@ -359,12 +374,12 @@ def layout_element_check(element: Union[LayoutData, str]):
 class LayoutCollection:
     def __init__(self, init_list: "list[LayoutData]", id: str, name: str):
         self.name = name
-        self.list:  "list[LayoutData]" = init_list
+        self.list: "list[LayoutData]" = init_list
         self.mirror = False
         self.image = self.create_image()
         self.width, self.height = self.image.size
         canvas_size = (960, 540)
-        self.position = [
+        self.position: "list[int]" = [
             canvas_size[0] /2 - self.width /2,
             canvas_size[1] /2 - self.height /2,
             canvas_size[0] /2 + self.width /2,
@@ -373,10 +388,15 @@ class LayoutCollection:
         self.id = id
         self.image_tk = ImageTk.PhotoImage(self.image)
 
+    def __repr__(self) -> str:
+        return_list = [data.__repr__() for data in self.list]
+        return "\n".join(return_list)
+
     def create_image(self):
         max_x = max([obj.position[2] for obj in self.list])
         image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
         for data in reversed(self.list):
+            data.image = data.image.resize((data.width, data.height))
             x = max_x - (data.position[0]+data.width) if self.mirror else data.position[0]
             y = data.position[1]
             image.paste(data.image, (x, y), mask=data.image)
@@ -392,27 +412,6 @@ class LayoutCollection:
         self.image = self.create_image()
         image = self.image.copy().resize((self.width, self.height))
         self.image_tk = ImageTk.PhotoImage(image)
-
-
-class LayoutManager:
-    def __init__(self):
-        self.frame = None
-        self.layout_dic: dict[str: LayoutCollection] = {}
-
-    def setting_add_widget_frame(self, dataframe):
-        self.frame = dataframe
-
-    def add_layout_collection(self, data: LayoutCollection):
-        count = len([d for d in self.layout_dic.values() if data.name in d.name])
-        data.name = f"{data.name}_{count}" if count > 0 else data.name
-        self.layout_dic[data.id] = data
-
-    def position_update(self, id: str, position: "list[int]"):
-        self.layout_dic[id].position = position
-
-    def size_update(self, id: str, size: Tuple[int]):
-        self.layout_dic[id].size_update(size)
-
 
 
 if __name__ == "__main__":

@@ -5,9 +5,9 @@ import tkinter as tk
 from typing import Union, Callable
 import Object as Obj
 import Widget as Wid
+import Manager
 import random, string
 
-UNION_OBJECT = Union[Obj.ConstTextLayoutObject, Obj.ConstImageLayoutObject, Obj.VariableImageLayoutObject, Obj.VariableTextLayoutObject, Obj.CounterTextLayoutObject, Obj.CounterImageLayoutObject]
 
 def random_id(n):
     return str(random.randrange(10**(n-1),10**n))
@@ -206,7 +206,7 @@ class CustomCanvas(tk.Canvas):
 
 
 class LayoutObjectCanvas(CustomCanvas):
-    def __init__(self, parent, dataframe: Wid.ScrollFrame, *args, **kwargs):
+    def __init__(self, parent, dataframe, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.dict = Wid.LayoutObjectCustomList(self, dataframe)
 
@@ -233,7 +233,7 @@ class LayoutObjectCanvas(CustomCanvas):
         object = Obj.CounterImageLayoutObject(name=name, category=category, id=f"id_{random_id(10)}", folder_path=folder_path)
         self.dict.add_object(object)
 
-    def _create_canvas_object(self, obj: UNION_OBJECT):
+    def _create_canvas_object(self, obj: Obj.UNION_OBJECT):
         self.create_image(
             (obj.position[2] + obj.position[0])/2,
             (obj.position[3] + obj.position[1])/2,
@@ -312,12 +312,13 @@ class LayoutObjectCanvas(CustomCanvas):
 
 
 class LayoutCanvas(CustomCanvas):
-    def __init__(self, parent, layout_manager: Obj.LayoutManager, frame: Wid.ScrollFrame, *args, **kwargs):
+    def __init__(self, parent, layout_manager: Manager.LayoutManager, frame: Wid.ScrollFrame, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
         self.layout_manager = layout_manager
         self.frame = frame
-        self.widget: "dict[str: Wid.LayoutViewer]" = {}
+        self.widgets: "dict[str: Wid.LayoutViewer]" = layout_manager.widgets
         self.resize_direction = False
+        self.tag = False
 
     def add_layout(self, obj: Obj.LayoutCollection):
         self.layout_manager.add_layout_collection(obj)
@@ -328,7 +329,7 @@ class LayoutCanvas(CustomCanvas):
             image=obj.image_tk,
             tag=obj.id
             )
-        self.widget[obj.id] = Wid.LayoutViewer(obj, self.frame, self.image_re_create)
+        self.widgets[obj.id] = Wid.LayoutViewer(obj, self.frame, self.image_re_create)
 
     def image_select(self, image_id):
         self.rect_delete()
@@ -337,6 +338,15 @@ class LayoutCanvas(CustomCanvas):
         # self.dict.label_frame_select(image_id)
         self.addtag_withtag("move", image_id)
         self._create_rect(self.find_bbox(image_id))
+
+    def re_create(self, id: str=""):
+        if id:
+            self.widgets[id].frame_pack_forget()
+            self.layout_manager.delete_layout_collection(self.tag[0])
+            del self.widgets[self.tag[0]]
+        else:
+            for key, wid in self.layout_manager.layout_dic.items():
+                print(key, wid)
 
     def mouse_drag(self, event):
         if self.resize_direction:
@@ -354,11 +364,11 @@ class LayoutCanvas(CustomCanvas):
     def object_position_update(self, tag):
         position = self.find_bbox(tag)
         self.layout_manager.position_update(tag, position)
-        self.widget[tag].position_update()
+        self.widgets[tag].position_update()
 
     def object_size_update(self, tag: str, width: int, height: int):
         self.layout_manager.size_update(tag, (width, height))
-        self.widget[tag].size_update()
+        self.widgets[tag].size_update()
 
     def resize_rect(self, event):
         self.rect_delete()
@@ -402,6 +412,13 @@ class LayoutCanvas(CustomCanvas):
                 image=obj.image_tk,
                 tag=obj.id
                 )
+
+    def delete_object(self):
+        self.rect_delete()
+        self.delete(self.tag[0])
+        self.re_create(self.tag[0])
+        self.layout_manager.delete_widget(self.tag[0])
+        self.tag = False
 
 
 

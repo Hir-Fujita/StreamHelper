@@ -243,6 +243,10 @@ class LayoutElement:
         self.width, self.height = image.size
         self.image_tk = ImageTk.PhotoImage(image)
 
+    @classmethod
+    def variable_check(cls) -> bool:
+        raise NotImplementedError
+
 
 class ConstImageLayoutObject(LayoutElement):
     def __init__(self, image_path: str, category: str, id: str, **kwargs):
@@ -265,6 +269,10 @@ class ConstImageLayoutObject(LayoutElement):
             canvas_size[1] /2 + self.height /2,
         ]
 
+    @classmethod
+    def variable_check(cls) -> bool:
+        return False
+
 class VariableImageLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
         super().__init__(name, category, id, **kwargs)
@@ -277,6 +285,10 @@ class VariableImageLayoutObject(LayoutElement):
 
     def create_layout_image(self) -> Image.Image:
         return super().create_layout_image((200, 200), "blue", self.category, self.name)
+
+    @classmethod
+    def variable_check(cls) -> bool:
+        return True
 
 class ConstTextLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
@@ -292,6 +304,10 @@ class ConstTextLayoutObject(LayoutElement):
         # テキストエレメント用のレイアウトイメージを作成します。
         pass
 
+    @classmethod
+    def variable_check(cls) -> bool:
+        return False
+
 class VariableTextLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
         super().__init__(name, category, id, **kwargs)
@@ -305,6 +321,10 @@ class VariableTextLayoutObject(LayoutElement):
     def create_layout_image(self):
         return super().create_layout_image((300, 60), "red", self.category, self.name)
 
+    @classmethod
+    def variable_check(cls) -> bool:
+        return True
+
 class CounterTextLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
         super().__init__(name, category, id, **kwargs)
@@ -317,6 +337,10 @@ class CounterTextLayoutObject(LayoutElement):
 
     def create_layout_image(self):
         return super().create_layout_image((100, 100), "yellow", self.category, self.name)
+
+    @classmethod
+    def variable_check(cls) -> bool:
+        return True
 
 class CounterImageLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, folder_path: str="", **kwargs):
@@ -343,6 +367,10 @@ class CounterImageLayoutObject(LayoutElement):
         load_data = super().load_cls(datacls)
         load_data.image_list = datacls.image_list
         return load_data
+
+    @classmethod
+    def variable_check(cls) -> bool:
+        return True
 
 UNION_OBJECT = Union[
     ConstTextLayoutObject,
@@ -388,8 +416,18 @@ class LayoutCollection:
         self.id = id
         self.image_tk = ImageTk.PhotoImage(self.image)
 
-    def __repr__(self) -> str:
+    def debug_list_print(self) -> str:
         return_list = [data.__repr__() for data in self.list]
+        return "\n".join(return_list)
+
+    def debug_print(self) -> str:
+        return_list = [
+            f"LayoutCollection_Name: {self.name}",
+            f"List_Length: {len(self.list)}",
+            f"Width: {self.width}"
+            f"Height: {self.height}",
+            f"Position: {self.position}"
+        ]
         return "\n".join(return_list)
 
     def create_image(self):

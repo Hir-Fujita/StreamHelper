@@ -73,7 +73,6 @@ class Application(tk.Frame):
         )
 
 
-
 class NewWindow:
     def __init__(self, manager: Manager):
         self.window = None

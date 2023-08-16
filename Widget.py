@@ -41,7 +41,7 @@ class ManagerChildrenFrame(tk.Frame):
         self.manager = manager
         self.pack()
 
-    def get(self) -> str:
+    def get(self, id:str="") -> str:
         val = self.box.get()
         return val
 
@@ -53,9 +53,10 @@ class ManagerPlayerFrame(ManagerChildrenFrame):
         self.box.pack(padx=5, pady=2)
 
 class ManagerTeamFrame(ManagerChildrenFrame):
-    def __init__(self, parent, manager, length: int, *args, **kwargs):
+    def __init__(self, parent, manager, length: int, id_dict: "dict[str: str]", *args, **kwargs):
         ManagerChildrenFrame.__init__(self, parent, manager, text="Team", *args, **kwargs)
         self.cls = "ManagerTeamFrame"
+        self.id_dict = id_dict
         self.player_list = []
         self.team_name_box_frame = tk.LabelFrame(self, text="チーム選択")
         self.team_name_box_frame.pack(padx=2)
@@ -80,9 +81,14 @@ class ManagerTeamFrame(ManagerChildrenFrame):
         [new_player_list.remove(current) for current in current_list if current in new_player_list]
         [box.config(values=new_player_list) for box in self.box_list]
 
-    def get(self) -> "list[str]":
-        val_list = [box.get() for box in self.box_list]
-        return val_list
+    def get(self, id: str) -> "dict[str: str]":
+        return_dict = {}
+        return_dict[id] = self.team_name_box.get()
+        for key in self.id_dict.keys():
+            index = self.id_dict[key]
+            val = self.box_list[index].get()
+            return_dict[key] = val
+        return return_dict
 
 class ManagerCounterTextFrame(ManagerChildrenFrame):
     def __init__(self, parent, manager, *args, **kwargs):
@@ -611,6 +617,12 @@ class LayoutObjectViewer:
             self.font_box = CustomFontCombobox(font_frame, 30, text="Font")
             self.font_box.box.bind("<<ComboboxSelected>>", lambda event: self.font_update())
             self.font_box.pack(padx=2, pady=2)
+        # if self.object.category == "Team":
+        #     if self.object.name != "チーム名" and self.object.name != "チーム画像":
+        #         team_index_frame = tk.Frame(box_frame)
+        #         team_index_frame.grid(row=4, column=0, columnspan=2, padx=2, pady=2)
+        #         self.team_index_box = CustomSpinbox(team_index_frame, 5, text="TeamIndex")
+        #         self.team_index_box.pack()
 
         button_frame = tk.Frame(self.frame)
         button_frame.pack(side=tk.RIGHT)

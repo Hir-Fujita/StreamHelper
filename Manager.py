@@ -5,6 +5,7 @@ from typing import Union, Tuple
 import os
 import random
 import tkinter as tk
+from tkinter import messagebox
 import Object as Obj
 import Widget as Wid
 import collections
@@ -33,31 +34,48 @@ class Manager:
                 team_list = []
                 for data in lists:
                     if data.category == "Player":
-                        self.add_player_widget(collection.id)
+                        self.add_player_widget(collection.id, data)
                     elif data.category == "Counter":
                         self.add_counter_widget(collection.id, data)
                     elif data.category == "Team":
-                        team_list.append((data.name, data.category, data.cls))
+                        # team_list.append((data.name, data.category, data.cls))
+                        team_list.append(data)
                 if len(team_list):
-                    team_length_list = [team for team in team_list if team[0] != "チーム名" and team[0] != "チーム画像"]
-                    team_count = collections.Counter(team_length_list).most_common()[0][1] if len(team_length_list) else 0
-                    self.add_team_widget(collection.id, team_count)
+                    # team_length_list = [team for team in team_list if team[0] != "チーム名" and team[0] != "チーム画像"]
+                    # print(team_length_list)
+                    # team_count = collections.Counter(team_length_list).most_common()[0][1] if len(team_length_list) else 0
+                    # self.add_team_widget(collection.id, data, team_count)
+                    self.add_team_widget(collection.id, team_list)
 
-    def add_player_widget(self, id: str):
-        self.frame.add_widget("Player", id)
+    def add_player_widget(self, id: str, data: Obj.LayoutData):
+        self.frame.add_widget("Player", id, data)
 
-    def add_team_widget(self, id: str, length: int):
-        self.frame.add_widget("Team", id, length)
-        print(f"チームの出現最大個数{length}")
-        if length:
-            print("チームWidget追加", length)
+    # def add_team_widget(self, id: str, data: Obj.LayoutData, length: int):
+    #     self.frame.add_widget("Team", id, data, length)
+
+    def add_team_widget(self, id: str, data_list: "list[Obj.LayoutData]"):
+        data_list = [data for data in data_list if data.name != "チーム名" and data.name != "チーム画像"]
+        counter = {}
+        for data in data_list:
+            if not data.name in counter:
+                counter[data.name] = []
+            counter[data.name].append(data.id)
+        length = [len(count) for count in counter.values()]
+        length.sort()
+        id_dict = {}
+        for count in counter.values():
+            for index, _id in enumerate(count):
+                id_dict[_id] = index
+        self.frame.add_widget("Team", id=id, length=length[-1], id_dict=id_dict)
 
     def add_counter_widget(self, id: str, data: Obj.LayoutData):
         self.frame.add_widget("Counter", id, data)
 
     def generate_image(self):
-        val = self.frame.get()
-        print(val)
+        generator = ImageGenerator(self.frame.get(), self.layout.get())
+        if generator.value_check():
+            pass
+
 
 
 class ManagerFrame(tk.Frame):
@@ -75,7 +93,8 @@ class ManagerFrame(tk.Frame):
             ids = self.dict.keys()
             return_dic = {}
             for id in ids:
-                return_dic[id] = {key: value.get() for key, value in self.dict[id].items()}
+                return_dic[id] = {key: value.get(id) for key, value in self.dict[id].items()}
+            print(return_dic)
             return return_dic
 
         def pack_forget(self, id: str):
@@ -104,16 +123,17 @@ class ManagerFrame(tk.Frame):
         self.frame_dic[id].pack(side=tk.LEFT, padx=5)
         self.widgets.create(id)
 
-    def add_widget(self, widget_category: str, id: str, data: Union[Obj.LayoutData, int]=None):
+    def add_widget(self, widget_category: str, id: str, data: Obj.LayoutData=None, length: int=0, id_dict: "dict[str: str]"=None):
         if widget_category == "Player":
-            self.widgets.add(id, "ManagerPlayerFrame", Wid.ManagerPlayerFrame(self.frame_dic[id], self.manager))
+            self.widgets.add(id, data.id, Wid.ManagerPlayerFrame(self.frame_dic[id], self.manager))
         elif widget_category == "Counter":
             if "Image" in data.cls:
-                self.widgets.add(id, "ManagerCounterImageFrame", Wid.ManagerCounterImageFrame(self.frame_dic[id], self.manager, data))
+                self.widgets.add(id, data.id, Wid.ManagerCounterImageFrame(self.frame_dic[id], self.manager, data))
             if "Text" in data.cls:
-                self.widgets.add(id, "ManagerCounterTextFrame",  Wid.ManagerCounterTextFrame(self.frame_dic[id], self.manager))
+                self.widgets.add(id, data.id,  Wid.ManagerCounterTextFrame(self.frame_dic[id], self.manager))
         elif widget_category == "Team":
-            self.widgets.add(id, "ManagerTeamFrame",  Wid.ManagerTeamFrame(self.frame_dic[id], self.manager, data))
+            # self.widgets.add(id, data.id,  Wid.ManagerTeamFrame(self.frame_dic[id], self.manager, Length))
+            self.widgets.add(id, id,  Wid.ManagerTeamFrame(self.frame_dic[id], self.manager, length, id_dict))
 
     def delete_widget(self, id: str):
         self.frame_dic[id].pack_forget()
@@ -151,8 +171,30 @@ class LayoutManager:
         self.layout_dic[id].size_update(size)
 
     def get(self):
-        pass
+        return self.layout_dic
 
+
+class ImageGenerator:
+    def __init__(self, value_dic: "dict", layout_dic: "dict[str: Obj.LayoutCollection]"):
+        self.value_dic = value_dic
+        self.layout_dic = layout_dic
+
+    def value_check(self) -> bool:
+        print(self.value_dic)
+        print("----------------------------")
+        print(self.layout_dic)
+        for key, layout in self.layout_dic.items():
+            for data in layout.list:
+                result = Obj.layout_element_check(data.cls).variable_check()
+                if result:
+                    if data.category == "Team":
+                        variable = self.value_dic[key][key][data.id]
+                    else:
+                        variable = self.value_dic[key][data.id]
+                    if not variable:
+                        messagebox.showerror("Error", f"入力が空です")
+                        return False
+        return True
 
 
 if __name__ == "__main__":

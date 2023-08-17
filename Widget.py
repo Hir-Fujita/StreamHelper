@@ -68,7 +68,7 @@ class ManagerTeamFrame(ManagerChildrenFrame):
         self.player_frame.pack(padx=2)
         self.box_list = [ttk.Combobox(self.player_frame) for i in range(length)]
         [box.pack(padx=5, pady=2) for box in self.box_list]
-        [box.bind("<Button-1>", lambda e, index=index:self.box_select(index)) for index, box in enumerate(self.box_list)]
+        [box.bind("<Button-1>", lambda e:self.box_select()) for box in self.box_list]
 
     def team_name_select(self):
         name = f"{self.team_name_box.get()}.shd"

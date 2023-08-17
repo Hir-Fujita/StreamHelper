@@ -185,7 +185,10 @@ class ImageGenerator:
 
     def create_image(self):
         image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
-        for key, layout in self.layout_dic.items():
+        for key, layouts in self.layout_dic.items():
+            # LayoutCollectionクラスで画像生成メソッド
+            for layout in layouts.list:
+                print(layout)
             print(f"layout_{layout}", f"key_{key}")
 
 

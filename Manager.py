@@ -186,10 +186,49 @@ class ImageGenerator:
     def create_image(self):
         image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
         for key, layouts in self.layout_dic.items():
-            # LayoutCollectionクラスで画像生成メソッド
+            mirror = layouts.mirror
             for layout in layouts.list:
                 print(layout)
-            print(f"layout_{layout}", f"key_{key}")
+                layout_image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
+                value = self.get_value(layout.id, key)
+                print(value)
+                if value:
+                    pass
+                    # paste_image = self.generate_layout(layout, value, mirror)
+                # print(value_item)
+                # # self.generate_layout(layout, mirror)
+                # print(layout)
+
+    def get_value(self, id: str, master_key: str) -> Union[str, bool]:
+        id_dic = self.value_dic[master_key].copy()
+        if id in id_dic:
+            return id_dic[id]
+        else:
+            id_dic = id_dic[master_key].copy()
+            if id in id_dic:
+                return id_dic[id]
+            else:
+                return False
+
+
+    def generate_layout(self, layout: Obj.LayoutData, key: str, mirror: bool) -> Image.Image:
+        value = self.get_value(layout.id, key)
+        if layout.cls == "ConstImageLayoutObject":
+            image = layout.image
+            if mirror:
+                image = ImageOps.mirror(image)
+        elif layout.cls == "ConstTextLayoutObject":
+            pass
+        elif layout.cls == "VariableImageLayoutObject":
+            pass
+        elif layout.cls == "VariableTextLayoutObject":
+            pass
+        elif layout.cls == "CounterTextLayoutObject":
+            pass
+        elif layout.cls == "CounterImageLayoutObject":
+            pass
+        image = image.resize((image.width, image.height))
+        return image
 
 
 if __name__ == "__main__":

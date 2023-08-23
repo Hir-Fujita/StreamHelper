@@ -247,6 +247,9 @@ class LayoutElement:
     def variable_check(cls) -> bool:
         raise NotImplementedError
 
+    def generate_image(self, path: str) -> Image.Image:
+        raise NotImplementedError
+
 
 class ConstImageLayoutObject(LayoutElement):
     def __init__(self, image_path: str, category: str, id: str, **kwargs):
@@ -273,6 +276,9 @@ class ConstImageLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return False
 
+    def generate_image(self, path: str) -> Image.Image:
+        return self.image
+
 class VariableImageLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
         super().__init__(name, category, id, **kwargs)
@@ -289,6 +295,9 @@ class VariableImageLayoutObject(LayoutElement):
     @classmethod
     def variable_check(cls) -> bool:
         return True
+
+    def generate_image(self, path: str) -> Image.Image:
+        pass
 
 class ConstTextLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):

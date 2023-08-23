@@ -64,9 +64,8 @@ class Manager:
         self.frame.add_widget("Counter", id, data)
 
     def generate_image(self):
-        generator = ImageGenerator(self.frame.get(), self.layout.get())
-        if generator.value_check():
-            generator.create_image()
+        generator = ImageGenerator(self, self.frame.get(), self.layout.get())
+        generator.create_image()
 
 
 class ManagerFrame(tk.Frame):
@@ -165,41 +164,38 @@ class LayoutManager:
 
 
 class ImageGenerator:
-    def __init__(self, value_dic: "dict", layout_dic: "dict[str: Obj.LayoutCollection]"):
+    def __init__(self, manager: Manager, value_dic: "dict", layout_dic: "dict[str: Obj.LayoutCollection]"):
+        self.manager = manager
         self.value_dic = value_dic
         self.layout_dic = layout_dic
 
-    def value_check(self) -> bool:
-        for key, layout in self.layout_dic.items():
-            for data in layout.list:
-                result = Obj.layout_element_check(data.cls).variable_check()
-                if result:
-                    if data.category == "Team":
-                        variable = self.value_dic[key][key][data.id]
-                    else:
-                        variable = self.value_dic[key][data.id]
-                    if not variable:
-                        messagebox.showerror("Error", f"入力が空です")
-                        return False
-        return True
+    # def value_check(self) -> bool:
+    #     for key, layout in self.layout_dic.items():
+    #         for data in layout.list:
+    #             result = Obj.layout_element_check(data.cls).variable_check()
+    #             if result:
+    #                 if data.category == "Team":
+    #                     variable = self.value_dic[key][key][data.id]
+    #                 else:
+    #                     variable = self.value_dic[key][data.id]
+    #                 if not variable:
+    #                     messagebox.showerror("Error", f"入力が空です")
+    #                     return False
+    #     return True
 
     def create_image(self):
         image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
         for key, layouts in self.layout_dic.items():
             mirror = layouts.mirror
             for layout in layouts.list:
-                print(layout)
-                layout_image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
-                value = self.get_value(layout.id, key)
-                print(value)
-                if value:
-                    pass
+                image = self.generate_layout(layout, key, mirror)
+
                     # paste_image = self.generate_layout(layout, value, mirror)
                 # print(value_item)
                 # # self.generate_layout(layout, mirror)
                 # print(layout)
 
-    def get_value(self, id: str, master_key: str) -> Union[str, bool]:
+    def get_value(self, id: str, master_key: str) -> str:
         id_dic = self.value_dic[master_key].copy()
         if id in id_dic:
             return id_dic[id]
@@ -208,26 +204,35 @@ class ImageGenerator:
             if id in id_dic:
                 return id_dic[id]
             else:
-                return False
-
+                return ""
 
     def generate_layout(self, layout: Obj.LayoutData, key: str, mirror: bool) -> Image.Image:
-        value = self.get_value(layout.id, key)
+        image = False
         if layout.cls == "ConstImageLayoutObject":
             image = layout.image
             if mirror:
                 image = ImageOps.mirror(image)
-        elif layout.cls == "ConstTextLayoutObject":
-            pass
-        elif layout.cls == "VariableImageLayoutObject":
-            pass
-        elif layout.cls == "VariableTextLayoutObject":
-            pass
-        elif layout.cls == "CounterTextLayoutObject":
-            pass
-        elif layout.cls == "CounterImageLayoutObject":
-            pass
-        image = image.resize((image.width, image.height))
+        else:
+            print(layout)
+            if layout.name == "チーム名" or layout.name == "チーム画像":
+                value = self.get_value(key, key)[key]
+                path = f"StreamHelper/Gametitle/{self.manager.game.title}/Team/{value}.shd"
+            else:
+                value = self.get_value(layout.id, key)
+                if layout.category == "Team":
+                    pass
+            if layout.cls == "ConstTextLayoutObject":
+                pass
+            elif layout.cls == "VariableImageLayoutObject":
+                pass
+            elif layout.cls == "VariableTextLayoutObject":
+                pass
+            elif layout.cls == "CounterTextLayoutObject":
+                pass
+            elif layout.cls == "CounterImageLayoutObject":
+                pass
+            if image:
+                image = image.resize((image.width, image.height))
         return image
 
 

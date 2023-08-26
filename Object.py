@@ -247,7 +247,7 @@ class LayoutElement:
     def variable_check(cls) -> bool:
         raise NotImplementedError
 
-    def generate_image(self, path: str) -> Image.Image:
+    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
         raise NotImplementedError
 
 
@@ -276,7 +276,7 @@ class ConstImageLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return False
 
-    def generate_image(self, path: str) -> Image.Image:
+    def generate_image(self, path: str, mirror: bool=False) -> Image.Image:
         return self.image
 
 class VariableImageLayoutObject(LayoutElement):
@@ -296,8 +296,10 @@ class VariableImageLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return True
 
-    def generate_image(self, path: str) -> Image.Image:
-        pass
+    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
+        image = self.image.copy()
+        image = image.resize((self.width, self.height))
+        return image
 
 class ConstTextLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
@@ -317,6 +319,11 @@ class ConstTextLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return False
 
+    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
+        image = Image.new("RGBA", (self.width, self.height), (255, 255, 255, 100))
+        image = image.resize((self.width, self.height))
+        return image
+
 class VariableTextLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
         super().__init__(name, category, id, **kwargs)
@@ -334,6 +341,11 @@ class VariableTextLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return True
 
+    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
+        image = Image.open(path)
+        image = image.resize((self.width, self.height))
+        return image
+
 class CounterTextLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
         super().__init__(name, category, id, **kwargs)
@@ -350,6 +362,12 @@ class CounterTextLayoutObject(LayoutElement):
     @classmethod
     def variable_check(cls) -> bool:
         return True
+
+    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
+        text = path
+        image = Image.new("RGBA", (self.width, self.height), (255, 255, 255, 100))
+        draw = ImageDraw.Draw(image)
+        return image
 
 class CounterImageLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, folder_path: str="", **kwargs):
@@ -380,6 +398,11 @@ class CounterImageLayoutObject(LayoutElement):
     @classmethod
     def variable_check(cls) -> bool:
         return True
+
+    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
+        image = Image.open(path)
+        image = image.resize((self.width, self.height))
+        return image
 
 UNION_OBJECT = Union[
     ConstTextLayoutObject,

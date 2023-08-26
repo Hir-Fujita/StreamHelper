@@ -559,6 +559,9 @@ class CustomSpinbox(tk.LabelFrame):
         self.box = tk.Spinbox(self, width=width, increment=1, from_=1, to=9999, textvariable=self.value)
         self.box.pack(padx=2, pady=2)
 
+    def set_command(self, func: Callable):
+        self.box.config(command=func)
+
     def set(self, value: int):
         self.value.set(value)
 
@@ -614,9 +617,13 @@ class LayoutObjectViewer:
         if "Text" in object.cls:
             font_frame = tk.Frame(box_frame)
             font_frame.grid(row=3, column=0, columnspan=2, padx=2, pady=2)
-            self.font_box = CustomFontCombobox(font_frame, 30, text="Font")
+            self.font_box = CustomFontCombobox(font_frame, 20, text="Font")
             self.font_box.box.bind("<<ComboboxSelected>>", lambda event: self.font_update())
-            self.font_box.pack(padx=2, pady=2)
+            self.font_box.pack(side=tk.LEFT, padx=2, pady=2)
+            self.font_size = CustomSpinbox(font_frame, 6, text="Size")
+            self.font_size.set_command(self.font_update)
+            self.font_size.pack(side=tk.LEFT, padx=2, pady=2)
+            self.font_size.set(20)
         # if self.object.category == "Team":
         #     if self.object.name != "チーム名" and self.object.name != "チーム画像":
         #         team_index_frame = tk.Frame(box_frame)
@@ -647,7 +654,7 @@ class LayoutObjectViewer:
         self.pos_bottom_box.box.config(fg="red") if self.object.position[3] > 540 else self.pos_bottom_box.box.config(fg="black")
 
     def font_update(self):
-        self.object.font = self.font_box.get()
+        self.object.font = (self.font_box.get(), self.font_size.get())
 
     def re_pack(self):
         self.frame.pack()

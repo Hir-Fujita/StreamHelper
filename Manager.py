@@ -169,31 +169,12 @@ class ImageGenerator:
         self.value_dic = value_dic
         self.layout_dic = layout_dic
 
-    # def value_check(self) -> bool:
-    #     for key, layout in self.layout_dic.items():
-    #         for data in layout.list:
-    #             result = Obj.layout_element_check(data.cls).variable_check()
-    #             if result:
-    #                 if data.category == "Team":
-    #                     variable = self.value_dic[key][key][data.id]
-    #                 else:
-    #                     variable = self.value_dic[key][data.id]
-    #                 if not variable:
-    #                     messagebox.showerror("Error", f"入力が空です")
-    #                     return False
-    #     return True
-
     def create_image(self):
         image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
         for key, layouts in self.layout_dic.items():
             mirror = layouts.mirror
             for layout in layouts.list:
                 image = self.generate_layout(layout, key, mirror)
-
-                    # paste_image = self.generate_layout(layout, value, mirror)
-                # print(value_item)
-                # # self.generate_layout(layout, mirror)
-                # print(layout)
 
     def get_value(self, id: str, master_key: str) -> str:
         id_dic = self.value_dic[master_key].copy()

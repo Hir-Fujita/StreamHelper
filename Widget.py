@@ -3,7 +3,7 @@
 
 import os
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, colorchooser
 from typing import Union, Callable
 import random
 import Object as Obj
@@ -49,7 +49,8 @@ class ManagerPlayerFrame(ManagerChildrenFrame):
     def __init__(self, parent, manager, *args, **kwargs):
         ManagerChildrenFrame.__init__(self, parent, manager, text="Player", *args, **kwargs)
         self.cls = "ManagerPlayerFrame"
-        self.box = ttk.Combobox(self, values=self.manager.game.player_list)
+        player_list = [get_filename(player) for player in self.manager.game.player_list]
+        self.box = ttk.Combobox(self, values=player_list)
         self.box.pack(padx=5, pady=2)
 
 class ManagerTeamFrame(ManagerChildrenFrame):
@@ -310,7 +311,7 @@ class LayoutObjectCanvas(CustomCanvas):
         return True
 
     def save_layouts(self) -> "list[Obj.LayoutElement]":
-        save_list = [obj.object.save_cls() for obj in self.dict.dict.values()]
+        save_list = [obj.save_object() for obj in self.dict.dict.values()]
         return save_list
 
     def add_object(self, class_name: str, name: str, category: str):
@@ -428,7 +429,6 @@ class LayoutCanvas(CustomCanvas):
         self.rect_delete()
         self.move_tag_delete()
         self.tag = (image_id, "current")
-        # self.dict.label_frame_select(image_id)
         self.addtag_withtag("move", image_id)
         self._create_rect(self.find_bbox(image_id))
 
@@ -538,7 +538,6 @@ class CustomLabelFrame(tk.LabelFrame):
         self.font_box.set("フォントを選択")
         self.font_box.pack(padx=padx, pady=pady)
 
-
 class CustomEntry(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
         tk.LabelFrame.__init__(self, parent, *args, **kwargs)
@@ -568,6 +567,19 @@ class CustomSpinbox(tk.LabelFrame):
     def get(self) -> int:
         return self.value.get()
 
+class CustomCombobox(tk.LabelFrame):
+    def __init__(self, parent, values, width=18, *args, **kwargs):
+        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+        self.box = ttk.Combobox(self, width=width, values=values, state="readonly")
+        self.box.pack(padx=2, pady=2)
+        self.set(values[1])
+
+    def set(self, value: str):
+        self.box.set(value)
+
+    def get(self) -> str:
+        return self.box.get()
+
 class CustomFontCombobox(tk.LabelFrame):
     def __init__(self, parent, width=18, *args, **kwargs):
         tk.LabelFrame.__init__(self, parent, *args, **kwargs)
@@ -583,6 +595,70 @@ class CustomFontCombobox(tk.LabelFrame):
 
     def get(self) -> str:
         return self.box.get()
+
+class FontWidget:
+    def __init__(self, object: Obj.UNION_OBJECT, parent: tk.Frame):
+        self.window = None
+        self.object = object
+        self.create_button_image()
+        self.button = tk.Button(parent, image=self.image, command=self.create_window)
+
+    def create_button_image(self):
+        image = Obj.create_text_image(
+            "フォント設定",
+            self.object.font,
+            (200, 20)
+        )
+        self.image = Obj.image_tk(image)
+
+    def font_update(self):
+        self.object.font.font = self.font_box.get()
+        self.object.font.anchor = self.anchor_box.get()
+        self.object.font.stroke_width = int(self.width_box.get())
+        self.create_button_image()
+        self.button.config(image=self.image)
+        self.image_label.config(image=self.image)
+
+    def create_window(self):
+        if self.window is not None:
+            self.window.destroy()
+        self.window = tk.Toplevel()
+        self.window.geometry("300x400")
+        self.window.title("フォント設定")
+        # self.window.protocol()
+        label_frame = tk.LabelFrame(self.window, text="フォントイメージ")
+        label_frame.pack()
+        self.image_label = tk.Label(label_frame, image=self.image)
+        self.image_label.pack(padx=2, pady=2)
+        color_box = tk.Button(self.window, text="文字色", command=lambda: self.color_change(color_box, "fill"), width=18,
+                              bg=self.object.font.fill, fg=Obj.color_reverse(self.object.font.fill))
+        color_box.pack()
+        self.font_box = CustomFontCombobox(self.window, text="使用フォント")
+        self.font_box.set(self.object.font.font)
+        self.font_box.box.bind("<<ComboboxSelected>>", lambda e: self.font_update())
+        self.font_box.pack()
+        self.anchor_box = CustomCombobox(self.window, ["左寄", "中央", "右寄"], text="Grid")
+        self.anchor_box.set(self.object.font.anchor)
+        self.anchor_box.box.bind("<<ComboboxSelected>>", lambda e: self.font_update())
+        self.anchor_box.pack()
+        self.width_box = CustomCombobox(self.window, [num for num in range(51)], text="縁幅")
+        self.width_box.set(self.object.font.stroke_width)
+        self.width_box.box.bind("<<ComboboxSelected>>", lambda e: self.font_update())
+        self.width_box.pack()
+        stroke_fill_box = tk.Button(self.window, text="縁色", command=lambda: self.color_change(stroke_fill_box, "stroke_fill"), width=18,
+                                    bg=self.object.font.stroke_fill, fg=Obj.color_reverse(self.object.font.stroke_fill))
+        stroke_fill_box.pack()
+
+    def color_change(self, widget: tk.Button, value):
+        color = colorchooser.askcolor(parent=self.window)
+        if color[0] != None:
+            if value == "fill":
+                self.object.font.fill = color[1]
+            elif value == "stroke_fill":
+                self.object.font.stroke_fill = color[1]
+            widget.config(bg=color[1])
+            widget.config(fg=Obj.color_reverse(color[1]))
+            self.font_update()
 
 
 class LayoutObjectViewer:
@@ -615,22 +691,8 @@ class LayoutObjectViewer:
         self.pos_bottom_box = CustomSpinbox(pos_frame, 5, text="BOTTOM")
         self.pos_bottom_box.pack(side=tk.LEFT, padx=3, pady=2)
         if "Text" in object.cls:
-            font_frame = tk.Frame(box_frame)
-            font_frame.grid(row=3, column=0, columnspan=2, padx=2, pady=2)
-            self.font_box = CustomFontCombobox(font_frame, 20, text="Font")
-            self.font_box.box.bind("<<ComboboxSelected>>", lambda event: self.font_update())
-            self.font_box.pack(side=tk.LEFT, padx=2, pady=2)
-            self.font_size = CustomSpinbox(font_frame, 6, text="Size")
-            self.font_size.set_command(self.font_update)
-            self.font_size.pack(side=tk.LEFT, padx=2, pady=2)
-            self.font_size.set(20)
-        # if self.object.category == "Team":
-        #     if self.object.name != "チーム名" and self.object.name != "チーム画像":
-        #         team_index_frame = tk.Frame(box_frame)
-        #         team_index_frame.grid(row=4, column=0, columnspan=2, padx=2, pady=2)
-        #         self.team_index_box = CustomSpinbox(team_index_frame, 5, text="TeamIndex")
-        #         self.team_index_box.pack()
-
+            self.font_widget = FontWidget(self.object, box_frame)
+            self.font_widget.button.grid(row=3, column=0, columnspan=2, padx=2, pady=2)
         button_frame = tk.Frame(self.frame)
         button_frame.pack(side=tk.RIGHT)
         up_button = tk.Button(button_frame, text="▲", command=self.up_button_click)
@@ -653,9 +715,6 @@ class LayoutObjectViewer:
         self.pos_right_box.box.config(fg="red") if self.object.position[2] > 960 else self.pos_right_box.box.config(fg="black")
         self.pos_bottom_box.box.config(fg="red") if self.object.position[3] > 540 else self.pos_bottom_box.box.config(fg="black")
 
-    def font_update(self):
-        self.object.font = (self.font_box.get(), self.font_size.get())
-
     def re_pack(self):
         self.frame.pack()
 
@@ -667,6 +726,16 @@ class LayoutObjectViewer:
 
     def down_button_click(self):
         self.method(self.object.id, False)
+
+    def save_object(self):
+        self.size_update()
+        self.object.position = [
+            self.pos_left_box.get(),
+            self.pos_top_box.get(),
+            self.pos_right_box.get(),
+            self.pos_bottom_box.get()
+        ]
+        return self.object.save_cls()
 
 
 class LayoutObjectCustomList:

@@ -84,7 +84,6 @@ class ManagerFrame(tk.Frame):
             return_dic = {}
             for id in ids:
                 return_dic[id] = {key: value.get(id) for key, value in self.dict[id].items()}
-            print(return_dic)
             return return_dic
 
         def pack_forget(self, id: str):
@@ -171,50 +170,74 @@ class ImageGenerator:
 
     def create_image(self):
         image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
-        for key, layouts in self.layout_dic.items():
-            mirror = layouts.mirror
-            for layout in layouts.list:
-                image = self.generate_layout(layout, key, mirror)
+        for _, layouts in self.layout_dic.items():
+            img = self.generate_layout(layouts)
+            image.paste(img, self.get_box(False, layouts), mask=img)
+        image.save("StreamHelper/test.png")
 
-    def get_value(self, id: str, master_key: str) -> str:
-        id_dic = self.value_dic[master_key].copy()
-        if id in id_dic:
-            return id_dic[id]
+    def get_value(self, object: Obj.LayoutData, dic: dict, master_key: str="") -> Union[str, Image.Image]:
+        if "Const" in object.cls:
+            return ""
         else:
-            id_dic = id_dic[master_key].copy()
-            if id in id_dic:
-                return id_dic[id]
+            if object.category == "Team":
+                value = dic[master_key]
+                if "チーム" in object.name:
+                    value = value[master_key]
+                    team = Obj.Team.load(f"StreamHelper/Gametitle/{self.manager.game.title}/Team/{value}.shd")
+                    if "名" in object.name:
+                        return team.data.name
+                    if "画像" in object.name:
+                        return team.data.image
+                else:
+                    value = value[object.id]
+                    player = Obj.Player.load(f"StreamHelper/Gametitle/{self.manager.game.title}/Player/{value}.shd")
+                    if object.name == "プレイヤー名":
+                        return player.data.name
+                    if object.name == "プレイヤー画像":
+                        return player.data.image
+                    if object.name == "キャラクター名":
+                        return player.data.character
+                    if object.name == "キャラクター画像":
+                        return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/face.png")
             else:
-                return ""
+                value = dic[object.id]
+                if object.category == "Player":
+                    player = Obj.Player.load(f"StreamHelper/Gametitle/{self.manager.game.title}/Player/{value}.shd")
+                    if object.name == "プレイヤー名":
+                        return player.data.name
+                    if object.name == "プレイヤー画像":
+                        return player.data.image
+                    if object.name == "キャラクター名":
+                        return player.data.character
+                    if object.name == "キャラクター画像":
+                        return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/face.png")
+                if object.category == "Counter":
+                    if "Text" in object.cls:
+                        return value
+                    if "Image" in object.cls:
+                        return object.image_list[value]
 
-    def generate_layout(self, layout: Obj.LayoutData, key: str, mirror: bool) -> Image.Image:
-        image = False
-        if layout.cls == "ConstImageLayoutObject":
-            image = layout.image
-            if mirror:
-                image = ImageOps.mirror(image)
-        else:
-            print(layout)
-            if layout.name == "チーム名" or layout.name == "チーム画像":
-                value = self.get_value(key, key)[key]
-                path = f"StreamHelper/Gametitle/{self.manager.game.title}/Team/{value}.shd"
-            else:
-                value = self.get_value(layout.id, key)
-                if layout.category == "Team":
-                    pass
-            if layout.cls == "ConstTextLayoutObject":
-                pass
-            elif layout.cls == "VariableImageLayoutObject":
-                pass
-            elif layout.cls == "VariableTextLayoutObject":
-                pass
-            elif layout.cls == "CounterTextLayoutObject":
-                pass
-            elif layout.cls == "CounterImageLayoutObject":
-                pass
-            if image:
-                image = image.resize((image.width, image.height))
+    def generate_layout(self, collection: Obj.LayoutCollection) -> Image.Image:
+        values = self.value_dic[collection.id]
+        image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
+        for layout in reversed(collection.list):
+            value = self.get_value(layout, values, collection.id)
+            element = Obj.layout_element_check(layout).load_cls(layout)
+            element_image = element.generate_image(value, collection.mirror)
+            if element_image.mode != "RGBA":
+                element_image = element_image.convert("RGBA")
+            image.paste(element_image, self.get_box(collection.mirror, element),  mask=element_image)
+        image = image.resize((collection.width, collection.height))
         return image
+
+    def get_box(self, mirror: bool, element: Union[Obj.LayoutElement, Obj.LayoutCollection]) -> Tuple[int]:
+        if mirror:
+            x = 960 - element.position[0] - element.width
+            y = element.position[1]
+            return (x, y)
+        else:
+            return (element.position[0], element.position[1])
+
 
 
 if __name__ == "__main__":

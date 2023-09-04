@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
 from typing import Tuple, Union
 from dataclasses import dataclass, field
 import os
 import pickle
-from PIL import Image, ImageTk, ImageDraw, ImageFont
+from PIL import Image, ImageTk, ImageDraw, ImageFont, ImageOps
 
-def save(filepath, data):
-    with open(filepath, "wb") as f:
-        pickle.dump(data, f)
-
-def load(filepath):
-    with open(filepath, "rb") as f:
-        return pickle.load(f)
 
 @dataclass
 class GameTitle:
@@ -131,6 +125,30 @@ class Team(Object):
             self.data.player_list.pop(-1)
 
 
+@dataclass
+class FontData:
+    font: str = "meiryo.ttc"
+    fill: str = "#000000"
+    anchor: str = "中央"
+    stroke_width: int = 0
+    stroke_fill: str = "#000000"
+
+    def copy(self, mirror: bool):
+        if mirror:
+            if self.anchor == "右寄":
+                anchor = "左寄"
+            elif self.anchor == "左寄":
+                anchor = "右寄"
+            else:
+                anchor = "中央"
+        else:
+            anchor = self.anchor
+        return FontData(font=self.font,
+                        fill=self.fill,
+                        anchor=anchor,
+                        stroke_width=self.stroke_width,
+                        stroke_fill=self.stroke_fill)
+
 
 @dataclass
 class LayoutData:
@@ -138,7 +156,7 @@ class LayoutData:
     category: str = ""
     id: str = ""
     cls: str = ""
-    font: str = ""
+    font: FontData = FontData()
     width: Union[int, float] = 0
     height: Union[int, float] = 0
     position: "list[int]" = field(default_factory=list)
@@ -149,7 +167,7 @@ def kw_check(dic: dict):
     dic.setdefault("cls", "")
     dic.setdefault("position", [0, 0, 0, 0])
     dic.setdefault("image", None)
-    dic.setdefault("font", "")
+    dic.setdefault("font", FontData())
     dic.setdefault("width", 0)
     dic.setdefault("height", 0)
     dic.setdefault("image_list", None)
@@ -165,7 +183,7 @@ class LayoutElement:
         self.cls = kw["cls"]
         self.position: "list[int]" = kw["position"]
         self.image: Image.Image = kw["image"]
-        self.font = kw["font"]
+        self.font: FontData = kw["font"]
         self.width = kw["width"]
         self.height = kw["height"]
         self.image_list: "dict[Image.Image]" = None
@@ -186,7 +204,7 @@ class LayoutElement:
         return datacls
 
     @classmethod
-    def load_cls(cls, datacls: LayoutData) -> LayoutData:
+    def load_cls(cls, datacls: LayoutData) -> LayoutElement:
         return cls(
             datacls.name,
             datacls.category,
@@ -247,7 +265,7 @@ class LayoutElement:
     def variable_check(cls) -> bool:
         raise NotImplementedError
 
-    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
+    def generate_image(self, value: Union[str, Image.Image], mirror: bool=False) -> Image.Image:
         raise NotImplementedError
 
 
@@ -276,8 +294,11 @@ class ConstImageLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return False
 
-    def generate_image(self, path: str, mirror: bool=False) -> Image.Image:
-        return self.image
+    def generate_image(self, value: Image.Image, mirror: bool=False) -> Image.Image:
+        image = self.image.copy().resize((self.width, self.height))
+        if mirror:
+            image = ImageOps.mirror(image)
+        return image
 
 class VariableImageLayoutObject(LayoutElement):
     def __init__(self, name: str, category: str, id: str, **kwargs):
@@ -296,9 +317,10 @@ class VariableImageLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return True
 
-    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
-        image = self.image.copy()
-        image = image.resize((self.width, self.height))
+    def generate_image(self, value: Image.Image, mirror: bool=False) -> Image.Image:
+        image = value.copy().resize((self.width, self.height))
+        if mirror:
+            image = ImageOps.mirror(image)
         return image
 
 class ConstTextLayoutObject(LayoutElement):
@@ -319,9 +341,9 @@ class ConstTextLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return False
 
-    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
-        image = Image.new("RGBA", (self.width, self.height), (255, 255, 255, 100))
-        image = image.resize((self.width, self.height))
+    def generate_image(self, value: str, mirror: bool=False) -> Image.Image:
+        font = self.font.copy(mirror=mirror)
+        image = create_text_image(value, font, (self.width, self.height))
         return image
 
 class VariableTextLayoutObject(LayoutElement):
@@ -341,9 +363,9 @@ class VariableTextLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return True
 
-    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
-        image = Image.open(path)
-        image = image.resize((self.width, self.height))
+    def generate_image(self, value: str, mirror: bool=False) -> Image.Image:
+        font = self.font.copy(mirror=mirror)
+        image = create_text_image(value, font, (self.width, self.height))
         return image
 
 class CounterTextLayoutObject(LayoutElement):
@@ -363,10 +385,9 @@ class CounterTextLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return True
 
-    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
-        text = path
-        image = Image.new("RGBA", (self.width, self.height), (255, 255, 255, 100))
-        draw = ImageDraw.Draw(image)
+    def generate_image(self, value: str, mirror: bool=False) -> Image.Image:
+        font = self.font.copy(mirror=mirror)
+        image = create_text_image(value, font, (self.width, self.height))
         return image
 
 class CounterImageLayoutObject(LayoutElement):
@@ -399,9 +420,10 @@ class CounterImageLayoutObject(LayoutElement):
     def variable_check(cls) -> bool:
         return True
 
-    def generate_image(self, path: str="", mirror: bool=False) -> Image.Image:
-        image = Image.open(path)
-        image = image.resize((self.width, self.height))
+    def generate_image(self, value: Image.Image, mirror: bool=False) -> Image.Image:
+        image = value.copy().resize((self.width, self.height))
+        if mirror:
+            image = ImageOps.mirror(image)
         return image
 
 UNION_OBJECT = Union[
@@ -482,6 +504,56 @@ class LayoutCollection:
         self.image = self.create_image()
         image = self.image.copy().resize((self.width, self.height))
         self.image_tk = ImageTk.PhotoImage(image)
+
+
+def save(filepath, data):
+    with open(filepath, "wb") as f:
+        pickle.dump(data, f)
+
+def load(filepath):
+    with open(filepath, "rb") as f:
+        return pickle.load(f)
+
+def anchor_width(anchor: str, width: int, paste_width: int) -> int:
+    if anchor == "中央":
+        return int(width /2 - paste_width /2)
+    elif anchor == "左寄":
+        return 0
+    elif anchor == "右寄":
+        return width - paste_width
+
+def create_text_image(text: str, font: FontData, size: Union[Tuple[int], bool]=False):
+    _font = ImageFont.truetype(f"StreamHelper/Font/{font.font}", 100)
+    _size = ImageDraw.Draw(Image.new("RGBA", (1, 1), (255, 255, 255, 100))).textsize(text, _font)
+    _size = (_size[0] +font.stroke_width*2, _size[1] +font.stroke_width*2)
+    text_image = Image.new("RGBA", _size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(text_image)
+    draw.text(
+        (_size[0]/2, _size[1]/2),
+        text,
+        font=_font,
+        fill=font.fill,
+        stroke_width=font.stroke_width,
+        stroke_fill=font.stroke_fill,
+        anchor="mm"
+        )
+    if size:
+        text_image.thumbnail(size)
+        return_image = Image.new("RGBA", size, (255, 255, 255, 0))
+        w = anchor_width(font.anchor, size[0], text_image.size[0])
+        return_image.paste(text_image, (w, 0), mask=text_image)
+        return return_image
+    return text_image
+
+def image_tk(image: Image.Image) -> ImageTk.PhotoImage:
+    return ImageTk.PhotoImage(image)
+
+def color_reverse(color_code: str):
+    r = hex(255 - int(color_code[1:3], 16))[2:] if hex(255 - int(color_code[1:3], 16))[2:] != "0" else "00"
+    g = hex(255 - int(color_code[3:5], 16))[2:] if hex(255 - int(color_code[3:5], 16))[2:] != "0" else "00"
+    b = hex(255 - int(color_code[5:7], 16))[2:] if hex(255 - int(color_code[5:7], 16))[2:] != "0" else "00"
+    return f"#{r}{g}{b}"
+
 
 
 if __name__ == "__main__":

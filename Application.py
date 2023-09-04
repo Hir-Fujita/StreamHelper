@@ -119,10 +119,6 @@ class NewWindow:
         )
         return filepath
 
-    def destroy(self):
-        if self.window is not None:
-            self.window.destroy()
-
     def _open_filedialogwindow(self, title: str, category: str="", parent_folder: str="", load_file_extention: str=".shd") -> str:
         if parent_folder:
             load_folder = f"./StreamHelper/{parent_folder}"
@@ -343,7 +339,6 @@ class LayoutObjectCreateWidget(NewWindow):
             if len(files):
                 self.canvas.add_counter_image_object("画像", "Counter", folder_path)
 
-
     def save_layouts(self):
         if self.canvas.save_check():
             filepath = self._save_filedialogwindow("", "LayoutObject保存", parent_folder="LayoutObject")
@@ -391,19 +386,19 @@ class LayoutObjectCreateWidget(NewWindow):
         player_text_frame.create_commbo_box(["プレイヤー名", "キャラクター名", "所属チーム名"])
         player_text_frame.create_button("生成")
         player_text_frame.widgets["生成"].config(command=lambda: self._canvas_create_object("VariableTextLayoutObject",
-                                                                                          player_text_frame.box.get(),
-                                                                                          "Player"))
+                                                                                            player_text_frame.box.get(),
+                                                                                            "Player"))
 
         team_label_frame = Wid.CustomLabelFrame(left_frame.frame, text="チーム")
         team_label_frame.pack(fill=tk.X, pady=5)
         team_label_frame.create_button("チーム名生成")
         team_label_frame.widgets["チーム名生成"].config(command=lambda: self._canvas_create_object("VariableTextLayoutObject",
-                                                                                             "チーム名",
-                                                                                             "Team"))
+                                                                                                  "チーム名",
+                                                                                                  "Team"))
         team_label_frame.create_button("チーム画像生成")
         team_label_frame.widgets["チーム画像生成"].config(command=lambda: self._canvas_create_object("VariableImageLayoutObject",
-                                                                                              "チーム画像",
-                                                                                              "Team"))
+                                                                                                    "チーム画像",
+                                                                                                    "Team"))
         team_image_frame = Wid.CustomLabelFrame(team_label_frame, text="画像")
         team_image_frame.pack(padx=5, pady=5)
         team_image_frame.create_commbo_box(["プレイヤー画像", "キャラクター画像"])
@@ -451,6 +446,7 @@ class LayoutObjectCreateWidget(NewWindow):
 
     def canvas_color_change(self):
         color = colorchooser.askcolor(parent=self.window)
+        Obj.color_reverse(color[1])
         if color[0] != None:
             self.canvas.config(bg=color[1])
 

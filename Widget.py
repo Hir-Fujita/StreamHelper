@@ -124,13 +124,46 @@ class CustomCanvas(tk.Canvas):
     def delete_object(self):
         raise NotImplementedError
 
-    def image_select(self):
-        raise NotImplementedError
+    def image_move(self, id: str, x: int, y: int):
+        self.move(id, x, y)
+
+    def image_re_create(self, object: Obj.UNION_OBJECT):
+        bbox = self.find_bbox(object.id)
+        self.delete(object.id)
+        self.create_image(
+            (bbox[0] + bbox[2]) /2,
+            (bbox[1] + bbox[3]) /2,
+            anchor="center",
+            image=object.image_tk,
+            tag=object.id
+            )
+        self.image_select(object.id)
+        self.layer_update()
+
+    def image_select(self, image_id):
+        self.rect_delete()
+        self.move_tag_delete()
+        self.tag = (image_id, "current")
+        self.addtag_withtag("move", image_id)
+        self._create_rect(self.find_bbox(image_id))
 
     def mouse_drag(self, event):
-        raise NotImplementedError
+        if self.resize_direction:
+            self.resize_rect(event)
+        elif self.tag:
+            self.move(
+                "move",
+                event.x - self.x,
+                event.y - self.y
+                )
+            self.x = event.x
+            self.y = event.y
+            self.object_position_update(self.tag[0])
 
     def resize_rect(self, event):
+        raise NotImplementedError
+
+    def object_position_update(self, id: str):
         raise NotImplementedError
 
     def find_tag(self, event):
@@ -297,6 +330,8 @@ class CustomCanvas(tk.Canvas):
             self.image_select(self.tag[0])
             self.on_mouse_leave()
 
+    def layer_update(self):
+        raise NotImplementedError
 
 class LayoutObjectCanvas(CustomCanvas):
     def __init__(self, parent, dataframe, *args, **kwargs):
@@ -348,25 +383,8 @@ class LayoutObjectCanvas(CustomCanvas):
         self.dict.object_position_update(tag, position)
 
     def image_select(self, image_id):
-        self.rect_delete()
-        self.move_tag_delete()
-        self.tag = (image_id, "current")
+        super().image_select(image_id)
         self.dict.label_frame_select(image_id)
-        self.addtag_withtag("move", image_id)
-        self._create_rect(self.find_bbox(image_id))
-
-    def mouse_drag(self, event):
-        if self.resize_direction:
-            self.resize_rect(event)
-        elif self.tag:
-            self.move(
-                "move",
-                event.x - self.x,
-                event.y - self.y
-                )
-            self.x = event.x
-            self.y = event.y
-            self.object_position_update(self.tag[0])
 
     def resize_rect(self, event):
         self.rect_delete()
@@ -403,6 +421,14 @@ class LayoutObjectCanvas(CustomCanvas):
             self.object_position_update(self.tag[0])
             self.dict.object_size_update(self.tag[0])
 
+    def mouse_release(self):
+        super().mouse_release()
+        self.layer_update()
+
+    def layer_update(self):
+        [self.lower(key) for key in self.dict.dict]
+
+
 
 class LayoutCanvas(CustomCanvas):
     def __init__(self, parent, layout_manager, frame: ScrollFrame, *args, **kwargs):
@@ -425,13 +451,6 @@ class LayoutCanvas(CustomCanvas):
             )
         self.widgets[obj.id] = LayoutViewer(obj, self.frame, self.image_re_create)
 
-    def image_select(self, image_id):
-        self.rect_delete()
-        self.move_tag_delete()
-        self.tag = (image_id, "current")
-        self.addtag_withtag("move", image_id)
-        self._create_rect(self.find_bbox(image_id))
-
     def re_create(self, id: str=""):
         if id:
             self.widgets[id].frame_pack_forget()
@@ -439,19 +458,6 @@ class LayoutCanvas(CustomCanvas):
             del self.widgets[self.tag[0]]
         else:
             [self.add_layout(collection) for collection in self.layout_manager.layout_dic.values()]
-
-    def mouse_drag(self, event):
-        if self.resize_direction:
-            self.resize_rect(event)
-        elif self.tag:
-            self.move(
-                "move",
-                event.x - self.x,
-                event.y - self.y
-                )
-            self.x = event.x
-            self.y = event.y
-            self.object_position_update(self.tag[0])
 
     def object_position_update(self, tag):
         position = self.find_bbox(tag)
@@ -558,9 +564,6 @@ class CustomSpinbox(tk.LabelFrame):
         self.box = tk.Spinbox(self, width=width, increment=1, from_=1, to=9999, textvariable=self.value)
         self.box.pack(padx=2, pady=2)
 
-    def set_command(self, func: Callable):
-        self.box.config(command=func)
-
     def set(self, value: int):
         self.value.set(value)
 
@@ -625,7 +628,6 @@ class FontWidget:
         self.window = tk.Toplevel()
         self.window.geometry("300x400")
         self.window.title("フォント設定")
-        # self.window.protocol()
         label_frame = tk.LabelFrame(self.window, text="フォントイメージ")
         label_frame.pack()
         self.image_label = tk.Label(label_frame, image=self.image)
@@ -660,11 +662,80 @@ class FontWidget:
             widget.config(fg=Obj.color_reverse(color[1]))
             self.font_update()
 
-
-class LayoutObjectViewer:
-    def __init__(self, object: Obj.UNION_OBJECT, frame: tk.Tk, method: Callable):
+class PositionWidget:
+    def __init__(self, object: Obj.UNION_OBJECT, parent: tk.Tk, method: Callable):
         self.object = object
         self.method = method
+        self.frame = tk.Frame(parent)
+        self.pos_left_box = CustomSpinbox(self.frame, 5, text="LEFT")
+        self.pos_left_box.pack(side=tk.LEFT, padx=3, pady=2)
+        self.pos_top_box = CustomSpinbox(self.frame, 5, text="TOP")
+        self.pos_top_box.pack(side=tk.LEFT, padx=3, pady=2)
+        self.pos_right_box = CustomSpinbox(self.frame, 5, text="RIGHT")
+        self.pos_right_box.pack(side=tk.LEFT, padx=3, pady=2)
+        self.pos_bottom_box = CustomSpinbox(self.frame, 5, text="BOTTOM")
+        self.pos_bottom_box.pack(side=tk.LEFT, padx=3, pady=2)
+        self.pos_left_box.box.config(command=lambda: self.image_move("LEFT"))
+        self.pos_left_box.box.bind("<KeyRelease>", lambda e: self.image_move("LEFT"))
+        self.pos_left_box.box.bind("<MouseWheel>", lambda event: self.mouse_scroll(event, "LEFT", self.pos_left_box))
+        self.pos_top_box.box.config(command=lambda: self.image_move("TOP"))
+        self.pos_top_box.box.bind("<KeyRelease>", lambda e: self.image_move("TOP"))
+        self.pos_top_box.box.bind("<MouseWheel>", lambda event: self.mouse_scroll(event, "TOP", self.pos_top_box))
+        self.pos_right_box.box.config(command=lambda: self.image_move("RIGHT"))
+        self.pos_right_box.box.bind("<KeyRelease>", lambda e: self.image_move("RIGHT"))
+        self.pos_right_box.box.bind("<MouseWheel>", lambda event: self.mouse_scroll(event, "RIGHT", self.pos_right_box))
+        self.pos_bottom_box.box.config(command=lambda: self.image_move("BOTTOM"))
+        self.pos_bottom_box.box.bind("<KeyRelease>", lambda e: self.image_move("BOTTOM"))
+        self.pos_bottom_box.box.bind("<MouseWheel>", lambda event: self.mouse_scroll(event, "BOTTOM", self.pos_bottom_box))
+
+    def mouse_scroll(self, event, anchor: str, widget: CustomSpinbox):
+        if event.delta > 0:
+            widget.set(widget.get() -10)
+        elif event.delta < 0:
+            widget.set(widget.get() +10)
+        self.image_move(anchor)
+
+    def image_move(self, anchor: str):
+        x, y = 0, 0
+        if anchor == "LEFT":
+            value = self.pos_left_box.get()
+            other_value = value + self.object.width
+            x = other_value - self.object.position[2]
+            self.position_update([value, self.object.position[1], other_value, self.object.position[3]])
+        elif anchor == "TOP":
+            value = self.pos_top_box.get()
+            other_value = value + self.object.height
+            y = other_value - self.object.position[3]
+            self.position_update([self.object.position[0], value, self.object.position[2], other_value])
+        elif anchor == "RIGHT":
+            value = self.pos_right_box.get()
+            other_value = value - self.object.width
+            x = other_value - self.object.position[0]
+            self.position_update([other_value, self.object.position[1], value, self.object.position[3]])
+        elif anchor == "BOTTOM":
+            value = self.pos_bottom_box.get()
+            other_value = value - self.object.height
+            y = other_value - self.object.position[1]
+            self.position_update([self.object.position[0], other_value, self.object.position[2], value])
+        self.method(self.object.id, x, y)
+
+    def position_update(self, position: "list[int]"):
+        self.object.position = position
+        self.pos_left_box.set(position[0])
+        self.pos_top_box.set(position[1])
+        self.pos_right_box.set(position[2])
+        self.pos_bottom_box.set(position[3])
+        self.pos_left_box.box.config(fg="red") if self.object.position[0] < 0 else self.pos_left_box.box.config(fg="black")
+        self.pos_top_box.box.config(fg="red") if self.object.position[1] < 0 else self.pos_top_box.box.config(fg="black")
+        self.pos_right_box.box.config(fg="red") if self.object.position[2] > 960 else self.pos_right_box.box.config(fg="black")
+        self.pos_bottom_box.box.config(fg="red") if self.object.position[3] > 540 else self.pos_bottom_box.box.config(fg="black")
+
+class LayoutObjectViewer:
+    def __init__(self, object: Obj.UNION_OBJECT, frame: tk.Tk, method: Callable, move_method: Callable, resize_method: Callable):
+        self.object = object
+        self.method = method
+        self.move_method = move_method
+        self.resize_method = resize_method
         self.frame = tk.LabelFrame(frame, text=object.cls, relief=tk.SOLID, bd=2)
         self.frame.pack(pady=2)
         box_frame = tk.Frame(self.frame)
@@ -676,20 +747,18 @@ class LayoutObjectViewer:
         self.id_box.grid(row=0, column=1, padx=2, pady=2)
         self.id_box.set(object.id)
         self.width_box = CustomSpinbox(box_frame, 10, text="Width")
+        self.width_box.box.config(command=lambda: self.resize())
+        self.width_box.box.bind("<KeyRelease>", lambda e: self.resize())
+        self.width_box.box.bind("<MouseWheel>", lambda event: self.mouse_scroll(event, self.width_box))
         self.width_box.grid(row=1, column=0, padx=2, pady=2)
         self.heigth_box = CustomSpinbox(box_frame, 10, text="Heigth")
+        self.heigth_box.box.config(command=lambda: self.resize())
+        self.heigth_box.box.bind("<KeyRelease>", lambda e: self.resize())
+        self.heigth_box.box.bind("<MouseWheel>", lambda event: self.mouse_scroll(event, self.heigth_box))
         self.heigth_box.grid(row=1, column=1, padx=2, pady=2)
         self.size_update()
-        pos_frame = tk.Frame(box_frame)
-        pos_frame.grid(row=2, column=0, columnspan=2, padx=2, pady=2)
-        self.pos_left_box = CustomSpinbox(pos_frame, 5, text="LEFT")
-        self.pos_left_box.pack(side=tk.LEFT, padx=3, pady=2)
-        self.pos_top_box = CustomSpinbox(pos_frame, 5, text="TOP")
-        self.pos_top_box.pack(side=tk.LEFT, padx=3, pady=2)
-        self.pos_right_box = CustomSpinbox(pos_frame, 5, text="RIGHT")
-        self.pos_right_box.pack(side=tk.LEFT, padx=3, pady=2)
-        self.pos_bottom_box = CustomSpinbox(pos_frame, 5, text="BOTTOM")
-        self.pos_bottom_box.pack(side=tk.LEFT, padx=3, pady=2)
+        self.position_widget = PositionWidget(self.object, box_frame, self.move_method)
+        self.position_widget.frame.grid(row=2, column=0, columnspan=2, padx=2, pady=2)
         if "Text" in object.cls:
             self.font_widget = FontWidget(self.object, box_frame)
             self.font_widget.button.grid(row=3, column=0, columnspan=2, padx=2, pady=2)
@@ -700,20 +769,23 @@ class LayoutObjectViewer:
         down_button = tk.Button(button_frame, text="▼", command=self.down_button_click)
         down_button.pack(side=tk.BOTTOM, padx=2, pady=5)
 
+    def mouse_scroll(self, event, widget: CustomSpinbox):
+        if event.delta > 0:
+            widget.set(widget.get() -10)
+        elif event.delta < 0:
+            widget.set(widget.get() +10)
+        self.resize()
+
+    def resize(self):
+        self.object.resize((self.width_box.get(), self.heigth_box.get()))
+        self.resize_method(self.object)
+
     def size_update(self):
         self.width_box.set(self.object.width)
         self.heigth_box.set(self.object.height)
 
     def position_update(self, position):
-        self.object.position = position
-        self.pos_left_box.set(position[0])
-        self.pos_top_box.set(position[1])
-        self.pos_right_box.set(position[2])
-        self.pos_bottom_box.set(position[3])
-        self.pos_left_box.box.config(fg="red") if self.object.position[0] < 0 else self.pos_left_box.box.config(fg="black")
-        self.pos_top_box.box.config(fg="red") if self.object.position[1] < 0 else self.pos_top_box.box.config(fg="black")
-        self.pos_right_box.box.config(fg="red") if self.object.position[2] > 960 else self.pos_right_box.box.config(fg="black")
-        self.pos_bottom_box.box.config(fg="red") if self.object.position[3] > 540 else self.pos_bottom_box.box.config(fg="black")
+        self.position_widget.position_update(position)
 
     def re_pack(self):
         self.frame.pack()
@@ -730,10 +802,10 @@ class LayoutObjectViewer:
     def save_object(self):
         self.size_update()
         self.object.position = [
-            self.pos_left_box.get(),
-            self.pos_top_box.get(),
-            self.pos_right_box.get(),
-            self.pos_bottom_box.get()
+            self.position_widget.pos_left_box.get(),
+            self.position_widget.pos_top_box.get(),
+            self.position_widget.pos_right_box.get(),
+            self.position_widget.pos_bottom_box.get()
         ]
         return self.object.save_cls()
 
@@ -748,7 +820,7 @@ class LayoutObjectCustomList:
         self.dict = {obj.object.id: obj for obj in list}
 
     def add_object(self, obj: Obj.UNION_OBJECT):
-        self.dict[obj.id] = LayoutObjectViewer(obj, self.frame, self.layer_update)
+        self.dict[obj.id] = LayoutObjectViewer(obj, self.frame, self.layer_update, self.canvas_move_position, self.canvas_image_re_create)
         self.dict[obj.id].frame.bind("<Button-1>", lambda event:self.canvas.image_select(obj.id))
         self.canvas._create_canvas_object(obj)
 
@@ -794,6 +866,13 @@ class LayoutObjectCustomList:
 
     def canvas_layer_update(self):
         [self.canvas.lower(key) for key in self.dict]
+
+    def canvas_move_position(self, id: str, x: int, y: int):
+        self.canvas.image_move(id, x, y)
+        self.canvas.image_select(id)
+
+    def canvas_image_re_create(self, object: Obj.UNION_OBJECT):
+        self.canvas.image_re_create(object)
 
 
 class LayoutViewer:

@@ -56,7 +56,7 @@ class PlayerData:
     title: str = ""
     character: str = ""
     team: str = ""
-    image: Image = None
+    image: Image.Image = None
 
 class Player(Object):
     def __init__(self, title:str):
@@ -160,6 +160,7 @@ class LayoutData:
     width: Union[int, float] = 0
     height: Union[int, float] = 0
     position: "list[int]" = field(default_factory=list)
+    alpha: int = 255
     image: Image.Image = None
     image_list: "dict[Image.Image]" = None
 
@@ -171,6 +172,7 @@ def kw_check(dic: dict):
     dic.setdefault("width", 0)
     dic.setdefault("height", 0)
     dic.setdefault("image_list", None)
+    dic.setdefault("alpha", 255)
     return dic
 
 
@@ -184,6 +186,7 @@ class LayoutElement:
         self.position: "list[int]" = kw["position"]
         self.image: Image.Image = kw["image"]
         self.font: FontData = kw["font"]
+        self.alpha : int = kw["alpha"]
         self.width = kw["width"]
         self.height = kw["height"]
         self.image_list: "dict[Image.Image]" = None
@@ -199,7 +202,8 @@ class LayoutElement:
             height = self.height,
             position = self.position,
             image = self.image,
-            image_list = self.image_list
+            image_list = self.image_list,
+            alpha = self.alpha
         )
         return datacls
 
@@ -215,6 +219,7 @@ class LayoutElement:
             font = datacls.font,
             width = datacls.width,
             height = datacls.height,
+            alpha = datacls.alpha
         )
 
     def create_layout_image(self, size: Tuple[int], color: str, category: str, name: str):
@@ -295,7 +300,7 @@ class ConstImageLayoutObject(LayoutElement):
         return False
 
     def generate_image(self, value: Image.Image, mirror: bool=False) -> Image.Image:
-        image = self.image.copy().resize((self.width, self.height))
+        image = self.image.copy().resize((self.width*2, self.height*2))
         if mirror:
             image = ImageOps.mirror(image)
         return image
@@ -318,7 +323,7 @@ class VariableImageLayoutObject(LayoutElement):
         return True
 
     def generate_image(self, value: Image.Image, mirror: bool=False) -> Image.Image:
-        image = value.copy().resize((self.width, self.height))
+        image = value.copy().resize((self.width*2, self.height*2))
         if mirror:
             image = ImageOps.mirror(image)
         return image
@@ -343,7 +348,7 @@ class ConstTextLayoutObject(LayoutElement):
 
     def generate_image(self, value: str, mirror: bool=False) -> Image.Image:
         font = self.font.copy(mirror=mirror)
-        image = create_text_image(value, font, (self.width, self.height))
+        image = create_text_image(value, font, (self.width*2, self.height*2))
         return image
 
 class VariableTextLayoutObject(LayoutElement):
@@ -365,7 +370,7 @@ class VariableTextLayoutObject(LayoutElement):
 
     def generate_image(self, value: str, mirror: bool=False) -> Image.Image:
         font = self.font.copy(mirror=mirror)
-        image = create_text_image(value, font, (self.width, self.height))
+        image = create_text_image(value, font, (self.width*2, self.height*2))
         return image
 
 class CounterTextLayoutObject(LayoutElement):
@@ -387,7 +392,7 @@ class CounterTextLayoutObject(LayoutElement):
 
     def generate_image(self, value: str, mirror: bool=False) -> Image.Image:
         font = self.font.copy(mirror=mirror)
-        image = create_text_image(value, font, (self.width, self.height))
+        image = create_text_image(value, font, (self.width*2, self.height*2))
         return image
 
 class CounterImageLayoutObject(LayoutElement):
@@ -421,7 +426,7 @@ class CounterImageLayoutObject(LayoutElement):
         return True
 
     def generate_image(self, value: Image.Image, mirror: bool=False) -> Image.Image:
-        image = value.copy().resize((self.width, self.height))
+        image = value.copy().resize((self.width*2, self.height*2))
         if mirror:
             image = ImageOps.mirror(image)
         return image
@@ -489,6 +494,8 @@ class LayoutCollection:
         image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
         for data in reversed(self.list):
             data.image = data.image.resize((data.width, data.height))
+            if data.image.mode != "RGBA":
+                data.image = data.image.convert("RGBA")
             x = max_x - (data.position[0]+data.width) if self.mirror else data.position[0]
             y = data.position[1]
             image.paste(data.image, (x, y), mask=data.image)

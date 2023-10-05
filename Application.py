@@ -498,7 +498,18 @@ class SettingWidget(NewWindow):
         return f"プログラム設定"
 
     def get_window_size(self):
-        return "1280x600"
+        return "800x400"
+
+    def window_create(self):
+        super().window_create()
+        self.save_name = Wid.CustomEntry(self.window, text="保存画像ファイル名")
+        self.save_name.pack()
+        self.save_name.set(self.manager.setting.output_name)
+        self.image_name = Wid.CustomEntry(self.window, text="キャラクター画像名")
+        self.image_name.set(self.manager.setting.character_image_file_name)
+        self.image_name.pack()
+
+
 
 
 def run():

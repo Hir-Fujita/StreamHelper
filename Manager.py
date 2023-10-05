@@ -3,19 +3,20 @@
 
 from typing import Union, Tuple
 import os
+import configparser
+from dataclasses import dataclass
 import random
 import tkinter as tk
-from tkinter import messagebox
-from PIL import Image, ImageOps
+from PIL import Image
 import Object as Obj
 import Widget as Wid
-
 
 class Manager:
     def __init__(self, parent):
         self.frame = ManagerFrame(self, parent)
         self.layout = LayoutManager(self)
         self.game = ""
+        self.setting = ManagerSetting()
         self.gametitle_list = os.listdir("StreamHelper/Gametitle")
         self.gametitle_select(0)
 
@@ -31,21 +32,25 @@ class Manager:
             lists = [data for data in collection.list if "Variable" in data.cls or "Counter" in data.cls]
             if len(lists):
                 self.frame.create_frame(collection.id)
-                team_list = []
+                player_key_list, team_list = [], []
                 for data in lists:
                     if data.category == "Player":
-                        self.add_player_widget(collection.id, data)
+                        player_key_list.append(data.id)
                     elif data.category == "Counter":
                         self.add_counter_widget(collection.id, data)
                     elif data.category == "Team":
                         team_list.append(data)
+                if len(player_key_list):
+                    self.add_player_widget(collection.id, player_key_list)
                 if len(team_list):
                     self.add_team_widget(collection.id, team_list)
 
-    def add_player_widget(self, id: str, data: Obj.LayoutData):
-        self.frame.add_widget("Player", id, data)
+    def add_player_widget(self, collection_id: str, key_list: "list[str]"):
+        manager_frame_widget = Wid.ManagerPlayerFrame(self.frame.frame_dic[collection_id], self)
+        for key in key_list:
+            self.frame.widgets.add(collection_id, key, manager_frame_widget)
 
-    def add_team_widget(self, id: str, data_list: "list[Obj.LayoutData]"):
+    def add_team_widget(self, collection_id: str, data_list: "list[Obj.LayoutData]"):
         data_list = [data for data in data_list if data.name != "チーム名" and data.name != "チーム画像"]
         counter = {}
         for data in data_list:
@@ -58,14 +63,41 @@ class Manager:
         for count in counter.values():
             for index, _id in enumerate(count):
                 id_dict[_id] = index
-        self.frame.add_widget("Team", id=id, length=length[-1], id_dict=id_dict)
+        self.frame.widgets.add(collection_id, collection_id,
+                               Wid.ManagerTeamFrame(self.frame.frame_dic[collection_id], self, length[-1], id_dict))
 
-    def add_counter_widget(self, id: str, data: Obj.LayoutData):
-        self.frame.add_widget("Counter", id, data)
+    def add_counter_widget(self, collection_id: str, data: Obj.LayoutData):
+        if "Image" in data.cls:
+            self.frame.widgets.add(collection_id, data.id, Wid.ManagerCounterImageFrame(self.frame.frame_dic[collection_id], self, data))
+        if "Text" in data.cls:
+            self.frame.widgets.add(collection_id, data.id, Wid.ManagerCounterTextFrame(self.frame.frame_dic[collection_id], self))
+
 
     def generate_image(self):
         generator = ImageGenerator(self, self.frame.get(), self.layout.get())
         generator.create_image()
+
+
+@dataclass
+class ManagerSetting:
+    character_image_file_name :str = ""
+    output_name: str = ""
+
+    def __init__(self):
+        self.setting_ini = configparser.ConfigParser()
+        setting_ini_path = "StreamHelper/Setting.ini"
+        self.setting_ini.read(setting_ini_path, encoding="utf-8")
+        self.setting = self.setting_ini["USER_SETTING"]
+        self.load()
+
+    def load(self):
+        self.character_image_file_name = self.setting["character_image_file_name"]
+        self.output_name = self.setting["output_name"]
+
+    def save(self):
+        with open("Sample.ini", "w") as configfile:
+            self.setting_ini.write(configfile)
+
 
 
 class ManagerFrame(tk.Frame):
@@ -76,8 +108,8 @@ class ManagerFrame(tk.Frame):
         def create(self, id: str):
             self.dict[id] = {}
 
-        def add(self, id: str, key: str, values: Wid.ManagerChildrenFrame):
-            self.dict[id][key] = values
+        def add(self, collection_id: str, key: str, values: Wid.ManagerChildrenFrame):
+            self.dict[collection_id][key] = values
 
         def get(self):
             ids = self.dict.keys()
@@ -88,7 +120,6 @@ class ManagerFrame(tk.Frame):
 
         def pack_forget(self, id: str):
             [wid.pack_forget() for wid in self.dict[id].values()]
-
 
     def __init__(self, manager, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
@@ -111,17 +142,6 @@ class ManagerFrame(tk.Frame):
         self.frame_dic[id] = tk.Frame(self)
         self.frame_dic[id].pack(side=tk.LEFT, padx=5)
         self.widgets.create(id)
-
-    def add_widget(self, widget_category: str, id: str, data: Obj.LayoutData=None, length: int=0, id_dict: "dict[str: str]"=None):
-        if widget_category == "Player":
-            self.widgets.add(id, data.id, Wid.ManagerPlayerFrame(self.frame_dic[id], self.manager))
-        elif widget_category == "Counter":
-            if "Image" in data.cls:
-                self.widgets.add(id, data.id, Wid.ManagerCounterImageFrame(self.frame_dic[id], self.manager, data))
-            if "Text" in data.cls:
-                self.widgets.add(id, data.id,  Wid.ManagerCounterTextFrame(self.frame_dic[id], self.manager))
-        elif widget_category == "Team":
-            self.widgets.add(id, id,  Wid.ManagerTeamFrame(self.frame_dic[id], self.manager, length, id_dict))
 
     def delete_widget(self, id: str):
         self.frame_dic[id].pack_forget()
@@ -169,11 +189,11 @@ class ImageGenerator:
         self.layout_dic = layout_dic
 
     def create_image(self):
-        image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
+        image = Image.new("RGBA", (1920, 1080), (255, 255, 255, 0))
         for _, layouts in self.layout_dic.items():
             img = self.generate_layout(layouts)
             image.paste(img, self.get_box(False, layouts), mask=img)
-        image.save("StreamHelper/test.png")
+        image.save(f"StreamHelper/{self.manager.setting.output_name}")
 
     def get_value(self, object: Obj.LayoutData, dic: dict, master_key: str="") -> Union[str, Image.Image]:
         if "Const" in object.cls:
@@ -189,16 +209,23 @@ class ImageGenerator:
                     if "画像" in object.name:
                         return team.data.image
                 else:
+                    check = value[f"check_{object.id}"]
                     value = value[object.id]
                     player = Obj.Player.load(f"StreamHelper/Gametitle/{self.manager.game.title}/Player/{value}.shd")
                     if object.name == "プレイヤー名":
                         return player.data.name
                     if object.name == "プレイヤー画像":
-                        return player.data.image
+                        if check:
+                            return player.data.image.convert("L")
+                        else:
+                            return player.data.image
                     if object.name == "キャラクター名":
                         return player.data.character
                     if object.name == "キャラクター画像":
-                        return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/face.png")
+                        if check:
+                            return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/{self.manager.setting.character_image_file_name}").convert("L")
+                        else:
+                            return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/{self.manager.setting.character_image_file_name}")
             else:
                 value = dic[object.id]
                 if object.category == "Player":
@@ -210,7 +237,7 @@ class ImageGenerator:
                     if object.name == "キャラクター名":
                         return player.data.character
                     if object.name == "キャラクター画像":
-                        return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/face.png")
+                        return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/{self.manager.setting.character_image_file_name}")
                 if object.category == "Counter":
                     if "Text" in object.cls:
                         return value
@@ -219,24 +246,30 @@ class ImageGenerator:
 
     def generate_layout(self, collection: Obj.LayoutCollection) -> Image.Image:
         values = self.value_dic[collection.id]
-        image = Image.new("RGBA", (960, 540), (255, 255, 255, 0))
+        image = Image.new("RGBA", (1920, 1080), (255, 255, 255, 0))
         for layout in reversed(collection.list):
             value = self.get_value(layout, values, collection.id)
             element = Obj.layout_element_check(layout).load_cls(layout)
             element_image = element.generate_image(value, collection.mirror)
             if element_image.mode != "RGBA":
                 element_image = element_image.convert("RGBA")
-            image.paste(element_image, self.get_box(collection.mirror, element),  mask=element_image)
-        image = image.resize((collection.width, collection.height))
+            if element.alpha != 255:
+                _, _, _, alpha = element_image.split()
+                alpha.paste(Image.new("L",  element_image.size, element.alpha), mask=alpha)
+                image.paste(element_image, self.get_box(collection.mirror, element), mask=alpha)
+            else:
+                image.paste(element_image, self.get_box(collection.mirror, element), mask=element_image)
+        image = image.crop(image.getbbox())
+        image = image.resize((collection.width *2, collection.height *2))
         return image
 
     def get_box(self, mirror: bool, element: Union[Obj.LayoutElement, Obj.LayoutCollection]) -> Tuple[int]:
         if mirror:
-            x = 960 - element.position[0] - element.width
-            y = element.position[1]
+            x = int(1920 - element.position[0]*2 - element.width*2)
+            y = int(element.position[1]*2)
             return (x, y)
         else:
-            return (element.position[0], element.position[1])
+            return (int(element.position[0]*2), int(element.position[1]*2))
 
 
 

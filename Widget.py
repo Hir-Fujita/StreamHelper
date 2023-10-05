@@ -35,13 +35,30 @@ class ScrollFrame(tk.Frame):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         self.canvas.configure(width=event.width)
 
+class CustomCheckButton(tk.LabelFrame):
+    def __init__(self, parent, *args, **kwargs):
+        tk.LabelFrame.__init__(self, parent, *args, **kwargs)
+        self.var = False
+        self.box = tk.Button(self, text="Check", command=self.click)
+        self.box.pack()
+
+    def click(self):
+        self.var = not self.var
+        if self.var:
+            self.box.config(bg="blue")
+        else:
+            self.box.config(bg="SystemButtonFace")
+
+    def get(self):
+        return self.var
+
 class ManagerChildrenFrame(tk.Frame):
     def __init__(self, parent, manager, *args, **kwargs):
         tk.LabelFrame.__init__(self, parent, *args, **kwargs)
         self.manager = manager
         self.pack()
 
-    def get(self, id:str="") -> str:
+    def get(self, id: str="") -> str:
         val = self.box.get()
         return val
 
@@ -68,8 +85,10 @@ class ManagerTeamFrame(ManagerChildrenFrame):
         self.player_frame = tk.LabelFrame(self, text="プレイヤー選択")
         self.player_frame.pack(padx=2)
         self.box_list = [ttk.Combobox(self.player_frame) for i in range(length)]
-        [box.pack(padx=5, pady=2) for box in self.box_list]
+        self.check_list = [CustomCheckButton(self.player_frame) for i in range(length)]
+        [box.grid(row=index, column=1, pady=2, padx=2) for index, box in enumerate(self.box_list)]
         [box.bind("<Button-1>", lambda e:self.box_select()) for box in self.box_list]
+        [box.grid(row=index, column=0, pady=2, padx=2) for index, box in enumerate(self.check_list)]
 
     def team_name_select(self):
         name = f"{self.team_name_box.get()}.shd"
@@ -87,8 +106,8 @@ class ManagerTeamFrame(ManagerChildrenFrame):
         return_dict[id] = self.team_name_box.get()
         for key in self.id_dict.keys():
             index = self.id_dict[key]
-            val = self.box_list[index].get()
-            return_dict[key] = val
+            return_dict[key] = self.box_list[index].get()
+            return_dict[f"check_{key}"] = self.check_list[index].get()
         return return_dict
 
 class ManagerCounterTextFrame(ManagerChildrenFrame):
@@ -730,6 +749,36 @@ class PositionWidget:
         self.pos_right_box.box.config(fg="red") if self.object.position[2] > 960 else self.pos_right_box.box.config(fg="black")
         self.pos_bottom_box.box.config(fg="red") if self.object.position[3] > 540 else self.pos_bottom_box.box.config(fg="black")
 
+class AlphaWidget:
+    def __init__(self, object: Obj.UNION_OBJECT, parent: tk.Tk):
+        self.object = object
+        self.frame = tk.LabelFrame(parent, text="透明度")
+        self.var = tk.IntVar()
+        self.slider = ttk.Scale(self.frame,
+                                orient="horizontal",
+                                from_=0, to=255,
+                                command=lambda e:self.value_set(self.slider))
+        self.slider.pack(side=tk.LEFT)
+        self.spinbox = tk.Spinbox(self.frame,
+                                  textvariable=self.var, width=5,
+                                  from_=0, to=255, increment=1,
+                                  command=lambda :self.update_value())
+        self.spinbox.bind("<KeyRelease>", lambda e:self.value_set(self.spinbox))
+        self.spinbox.pack(side=tk.LEFT, padx=5)
+        self.set(self.object.alpha)
+
+    def set(self, value: int):
+        self.var.set(value)
+        self.slider.set(value)
+
+    def value_set(self, widget: Union[ttk.Scale, tk.Spinbox]):
+        value = widget.get()
+        self.var.set(int(value))
+        self.update_value()
+
+    def update_value(self):
+        self.object.alpha = self.var.get()
+
 class LayoutObjectViewer:
     def __init__(self, object: Obj.UNION_OBJECT, frame: tk.Tk, method: Callable, move_method: Callable, resize_method: Callable):
         self.object = object
@@ -762,6 +811,8 @@ class LayoutObjectViewer:
         if "Text" in object.cls:
             self.font_widget = FontWidget(self.object, box_frame)
             self.font_widget.button.grid(row=3, column=0, columnspan=2, padx=2, pady=2)
+        self.alpha_widget = AlphaWidget(self.object, box_frame)
+        self.alpha_widget.frame.grid(row=4, column=0, columnspan=2, padx=2, pady=2)
         button_frame = tk.Frame(self.frame)
         button_frame.pack(side=tk.RIGHT)
         up_button = tk.Button(button_frame, text="▲", command=self.up_button_click)

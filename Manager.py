@@ -216,14 +216,14 @@ class ImageGenerator:
                         return player.data.name
                     if object.name == "プレイヤー画像":
                         if check:
-                            return player.data.image.convert("L")
+                            return player.data.image.convert("LA")
                         else:
                             return player.data.image
                     if object.name == "キャラクター名":
                         return player.data.character
                     if object.name == "キャラクター画像":
                         if check:
-                            return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/{self.manager.setting.character_image_file_name}").convert("L")
+                            return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/{self.manager.setting.character_image_file_name}").convert("LA")
                         else:
                             return Image.open(f"StreamHelper/Gametitle/{self.manager.game.title}/Character/{player.data.character}/{self.manager.setting.character_image_file_name}")
             else:
